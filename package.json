@@ -1,6 +1,6 @@
 {
   "name": "robodabet",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Robô da Bet — bot de apostas esportivas em cantos (Total de Escanteios) com modelo estatístico calibrado e CLV tracking",
   "main": "main.js",
   "scripts": {
@@ -19,7 +19,7 @@
     "playwright-core": "^1.44.0"
   },
   "devDependencies": {
-    "electron": "^32.0.0",
+    "electron": "^36.9.5",
     "electron-builder": "^25.1.8"
   },
   "author": "iaempresa.app"

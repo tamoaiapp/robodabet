@@ -86,6 +86,22 @@
       <section class="page" id="page-dashboard">
         <h1>Dashboard</h1>
 
+        <!-- Power switch (LIGAR/DESLIGAR) -->
+        <div class="power-strip">
+          <button class="power-btn" id="power-btn" data-state="off">
+            <div class="power-icon">⏻</div>
+            <div class="power-text">
+              <span class="power-label" id="power-label">DESLIGADO</span>
+              <span class="power-sub" id="power-sub">Clique pra ligar o robô</span>
+            </div>
+          </button>
+          <div class="power-info">
+            <div class="info-line"><span>Último ciclo</span><strong id="info-last">—</strong></div>
+            <div class="info-line"><span>Picks hoje</span><strong id="info-picks">0</strong></div>
+            <div class="info-line"><span>Próximo</span><strong id="info-next">—</strong></div>
+          </div>
+        </div>
+
         <div class="hero">
           <div class="hero-main">
             <span class="hero-label">SALDO</span>
@@ -352,6 +368,7 @@
     </div>
   </div>
 
+  <div class="toast-stack" id="toast-stack"></div>
   <script src="app.js"></script>
 </body>
 </html>

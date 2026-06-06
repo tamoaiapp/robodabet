@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, shell, dialog, Menu } = require('electron')
+const { app, BrowserWindow, ipcMain, shell, dialog, Menu, Notification } = require('electron')
 const { DatabaseSync } = require('node:sqlite')
 Menu.setApplicationMenu(null) // remove barra nativa File/Edit/View
 const path = require('path')
@@ -57,6 +57,162 @@ function runScript(scriptPath, args = [], onLine, onDone) {
   child.stderr.on('data', d => d.toString().split('\n').forEach(l => l && onLine(l, 'err')))
   child.on('close', code => onDone(code))
   return child
+}
+
+// ── Motor de automação ───────────────────────────────────────
+// Estado em memória do "bot ligado". Persiste em config.botEnabled
+// pra retomar quando o app reabrir.
+const botState = {
+  running: false,
+  cycleInProgress: false,
+  lastSelect: null,
+  lastPlace: null,
+  lastSnapshot: null,
+  lastSettle: null,
+  nextCycle: null,
+  intervalsIds: [],
+  picksToday: 0,
+  errors: 0,
+}
+
+function notify(title, body, silent = false) {
+  pushLog(`[notify] ${title}: ${body}`)
+  try {
+    new Notification({ title, body, silent }).show()
+  } catch (e) {}
+  win?.webContents.send('bot:notify', { title, body, ts: Date.now() })
+}
+
+function broadcastState() {
+  win?.webContents.send('bot:state', { ...botState, intervalsIds: undefined })
+}
+
+// Executa 1 ciclo completo: select → place → broadcast
+async function runCycle() {
+  if (botState.cycleInProgress) return
+  botState.cycleInProgress = true
+  broadcastState()
+  pushLog('[cycle] iniciando ciclo')
+  try {
+    // SELECT
+    const selOut = []
+    await new Promise((resolve) => {
+      runScript('src/strategy/select-treino.mjs', [],
+        (line, kind) => { selOut.push(line); win?.webContents.send('bot:log', { line, kind }) },
+        () => resolve()
+      )
+    })
+    botState.lastSelect = Date.now()
+
+    // Detectar quantas picks foram selecionadas
+    const treinoPath = path.join(DATA_DIR, 'corner-treino.json')
+    let picks = []
+    try { picks = JSON.parse(fs.readFileSync(treinoPath, 'utf8')) } catch {}
+    if (picks.length === 0) {
+      pushLog('[cycle] 0 picks elegíveis nesse ciclo')
+      botState.cycleInProgress = false
+      broadcastState()
+      return
+    }
+
+    // PLACE
+    notify('Robô da Bet', `Apostando ${picks.length} pick(s)…`, true)
+    await new Promise((resolve) => {
+      runScript('src/bet/place-bets.mjs', [treinoPath],
+        (line, kind) => {
+          win?.webContents.send('bot:log', { line, kind })
+          if (line.includes('APOSTA CONFIRMADA') || line.includes('[PAPER]')) {
+            botState.picksToday++
+          }
+        },
+        () => resolve()
+      )
+    })
+    botState.lastPlace = Date.now()
+    notify('Robô da Bet', `${botState.picksToday} aposta(s) registradas hoje.`)
+  } catch (e) {
+    botState.errors++
+    pushLog('[cycle] erro: ' + e.message)
+  } finally {
+    botState.cycleInProgress = false
+    broadcastState()
+  }
+}
+
+async function runSnapshot() {
+  await new Promise((resolve) => {
+    runScript('src/clv/snapshot-closing.mjs', [],
+      (line, kind) => win?.webContents.send('bot:log', { line, kind }),
+      () => resolve()
+    )
+  })
+  botState.lastSnapshot = Date.now()
+  broadcastState()
+}
+
+async function runSettle() {
+  // Primeiro precisa ter histórico atualizado — get-bet-history-light grava JSON
+  await new Promise((resolve) => {
+    runScript('src/casas/kto-history.mjs', [],
+      (line, kind) => win?.webContents.send('bot:log', { line, kind }),
+      () => resolve()
+    )
+  })
+  await new Promise((resolve) => {
+    runScript('src/clv/settle.mjs', [],
+      (line, kind) => {
+        win?.webContents.send('bot:log', { line, kind })
+        if (line.match(/won pnl=R\$([\d.]+)/i)) {
+          const v = parseFloat(line.match(/won pnl=R\$([\d.]+)/i)[1])
+          notify('✓ Vitória', `+R$${v.toFixed(2)} no Robô da Bet`)
+        } else if (line.match(/lost pnl=R\$-?([\d.]+)/i)) {
+          const v = parseFloat(line.match(/lost pnl=R\$-?([\d.]+)/i)[1])
+          notify('✗ Perda', `-R$${v.toFixed(2)} no Robô da Bet`, true)
+        }
+      },
+      () => resolve()
+    )
+  })
+  botState.lastSettle = Date.now()
+  broadcastState()
+}
+
+function startBot() {
+  if (botState.running) return
+  botState.running = true
+  notify('Robô da Bet', 'Bot LIGADO — começando primeiro ciclo')
+
+  // Reset contador diário às 00:00
+  const resetDaily = () => {
+    const now = new Date()
+    const tomorrow = new Date(now)
+    tomorrow.setDate(now.getDate() + 1)
+    tomorrow.setHours(0, 0, 0, 0)
+    const msUntil = tomorrow - now
+    setTimeout(() => { botState.picksToday = 0; broadcastState(); resetDaily() }, msUntil)
+  }
+  resetDaily()
+
+  // Primeiro ciclo imediato
+  runCycle().catch(() => {})
+
+  // A cada 2h: select+place
+  const i1 = setInterval(() => { runCycle().catch(() => {}) }, 2 * 60 * 60 * 1000)
+  // A cada 30min: snapshot closing odds
+  const i2 = setInterval(() => { runSnapshot().catch(() => {}) }, 30 * 60 * 1000)
+  // A cada 4h: settle
+  const i3 = setInterval(() => { runSettle().catch(() => {}) }, 4 * 60 * 60 * 1000)
+
+  botState.intervalsIds = [i1, i2, i3]
+  broadcastState()
+}
+
+function stopBot() {
+  botState.intervalsIds.forEach(clearInterval)
+  botState.intervalsIds = []
+  botState.running = false
+  notify('Robô da Bet', 'Bot DESLIGADO')
+  broadcastState()
 }
 
 // ── IPC handlers ─────────────────────────────────────────────────────────────
@@ -177,6 +333,21 @@ function registerIpc() {
     }
   })
 
+  // Motor automático
+  ipcMain.handle('bot:start', async () => {
+    const cfg = loadConfig()
+    fs.writeFileSync(path.join(DATA_DIR, 'config.json'), JSON.stringify({ ...cfg, botEnabled: true }, null, 2))
+    startBot()
+    return { running: true }
+  })
+  ipcMain.handle('bot:stop', async () => {
+    const cfg = loadConfig()
+    fs.writeFileSync(path.join(DATA_DIR, 'config.json'), JSON.stringify({ ...cfg, botEnabled: false }, null, 2))
+    stopBot()
+    return { running: false }
+  })
+  ipcMain.handle('bot:get-state', async () => ({ ...botState, intervalsIds: undefined }))
+
   // Settings: persistir em data dir (config.json)
   ipcMain.handle('settings:get', async () => {
     const p = path.join(DATA_DIR, 'config.json')
@@ -281,7 +452,14 @@ app.whenReady().then(() => {
   ensureDataDir()
   registerIpc()
   createWindow()
-  win.webContents.once('did-finish-load', () => setupAutoUpdate())
+  win.webContents.once('did-finish-load', () => {
+    setupAutoUpdate()
+    // Auto-retomar bot se estava ligado
+    const cfg = loadConfig()
+    if (cfg.botEnabled && cfg.acceptedTerms) {
+      setTimeout(() => startBot(), 3000) // dá 3s pra UI carregar
+    }
+  })
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()

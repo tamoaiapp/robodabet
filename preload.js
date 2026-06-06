@@ -8,7 +8,12 @@ contextBridge.exposeInMainWorld('bot', {
   report: () => ipcRenderer.invoke('bot:report'),
   ktoLogin: () => ipcRenderer.invoke('bot:kto-login'),
   stats: () => ipcRenderer.invoke('bot:stats'),
+  start: () => ipcRenderer.invoke('bot:start'),
+  stop: () => ipcRenderer.invoke('bot:stop'),
+  getState: () => ipcRenderer.invoke('bot:get-state'),
   onLog: (cb) => ipcRenderer.on('bot:log', (_, payload) => cb(payload)),
+  onState: (cb) => ipcRenderer.on('bot:state', (_, s) => cb(s)),
+  onNotify: (cb) => ipcRenderer.on('bot:notify', (_, n) => cb(n)),
 })
 
 contextBridge.exposeInMainWorld('settings', {

@@ -284,5 +284,68 @@ document.getElementById('tamoai-form').onsubmit = async (e) => {
   }
 }
 
+// ── Power switch + Bot state ─────────────────────────────────
+const powerBtn = document.getElementById('power-btn')
+const powerLabel = document.getElementById('power-label')
+const powerSub = document.getElementById('power-sub')
+const infoLast = document.getElementById('info-last')
+const infoPicks = document.getElementById('info-picks')
+const infoNext = document.getElementById('info-next')
+
+function fmtAgo(ts) {
+  if (!ts) return '—'
+  const ago = Math.floor((Date.now() - ts) / 60000)
+  if (ago < 1) return 'agora'
+  if (ago < 60) return ago + ' min atrás'
+  const h = Math.floor(ago / 60)
+  return h + 'h atrás'
+}
+function fmtIn(ts) {
+  if (!ts) return '—'
+  const ms = ts - Date.now()
+  if (ms < 0) return 'em breve'
+  const min = Math.floor(ms / 60000)
+  if (min < 60) return 'em ' + min + ' min'
+  return 'em ' + Math.floor(min / 60) + 'h ' + (min % 60) + 'm'
+}
+function applyState(s) {
+  if (!s) return
+  powerBtn.dataset.state = s.running ? 'on' : 'off'
+  powerLabel.textContent = s.running ? (s.cycleInProgress ? 'EM CICLO' : 'LIGADO') : 'DESLIGADO'
+  powerSub.textContent = s.running ? 'robô apostando sozinho' : 'clique pra ligar o robô'
+  infoLast.textContent = fmtAgo(s.lastPlace || s.lastSelect)
+  infoPicks.textContent = s.picksToday || 0
+  const nextMs = (s.lastSelect || Date.now()) + 2 * 60 * 60 * 1000
+  infoNext.textContent = s.running ? fmtIn(nextMs) : '—'
+}
+
+powerBtn.onclick = async () => {
+  const on = powerBtn.dataset.state === 'on'
+  if (on) {
+    if (!confirm('Desligar o robô? Ele para de operar e não vai mais apostar até você ligar de novo.')) return
+    await window.bot.stop()
+  } else {
+    if (!confirm('Ligar o robô?\n\nEle vai entrar em ciclo automático:\n• A cada 2h: seleciona picks + aposta\n• A cada 30min: captura odd de fechamento\n• A cada 4h: settle das apostas concluídas\n\nFunciona com seu Chrome aberto + KTO logado.')) return
+    await window.bot.start()
+  }
+}
+
+// Estado inicial + atualização contínua
+window.bot.getState().then(applyState)
+window.bot.onState(applyState)
+setInterval(() => window.bot.getState().then(applyState), 30000)
+
+// Toast de notificação
+window.bot.onNotify(({ title, body }) => {
+  const stack = document.getElementById('toast-stack')
+  const div = document.createElement('div')
+  div.className = 'toast'
+  div.innerHTML = `<strong>${title}</strong>${body}`
+  stack.appendChild(div)
+  setTimeout(() => div.remove(), 6000)
+  // Reload dashboard se foi uma aposta/settle
+  if (/aposta|vit|perda/i.test(title + ' ' + body)) loadDashboard().catch(() => {})
+})
+
 // ── Inicialização ─────────────────────────────────────────────
 loadDashboard().catch(() => {})

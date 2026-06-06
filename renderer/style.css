@@ -236,6 +236,120 @@ body {
 }
 .card-head h2 { margin: 0; }
 
+/* ── Power Switch (LIGAR/DESLIGAR robô) ──────────────────────── */
+.power-strip {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.power-btn {
+  background: linear-gradient(135deg, #1a1f1a, #0d120d);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 18px 24px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s;
+}
+.power-btn:hover { border-color: var(--border-hover); }
+.power-btn[data-state="on"] {
+  background: linear-gradient(135deg, rgba(0,255,136,0.18), rgba(0,255,136,0.04));
+  border-color: var(--neon-green);
+  box-shadow: 0 0 24px var(--neon-green-soft), inset 0 0 16px rgba(0,255,136,0.08);
+}
+.power-btn[data-state="on"]::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, var(--neon-green-soft), transparent);
+  animation: powerSweep 3s linear infinite;
+}
+@keyframes powerSweep { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+.power-icon {
+  width: 56px; height: 56px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--bg);
+  border: 2px solid var(--text-mute);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 28px;
+  color: var(--text-mute);
+  z-index: 1;
+  transition: all 0.3s;
+}
+.power-btn[data-state="on"] .power-icon {
+  border-color: var(--neon-green);
+  color: var(--neon-green);
+  box-shadow: 0 0 16px var(--neon-green-glow);
+  animation: powerPulse 1.5s ease-in-out infinite;
+}
+@keyframes powerPulse {
+  50% { box-shadow: 0 0 24px var(--neon-green-glow), 0 0 8px var(--neon-green); transform: scale(1.04); }
+}
+.power-text {
+  display: flex; flex-direction: column;
+  z-index: 1;
+}
+.power-label {
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  color: var(--text-mute);
+  transition: color 0.3s;
+}
+.power-btn[data-state="on"] .power-label {
+  color: var(--neon-green);
+  text-shadow: 0 0 12px var(--neon-green-glow);
+}
+.power-sub { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; margin-top: 2px; }
+
+.power-info {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px 18px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+}
+.info-line {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+}
+.info-line span { color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; }
+.info-line strong { color: var(--text); font-family: 'Cascadia Mono', monospace; font-weight: 700; }
+
+/* Toast de notificação */
+.toast-stack {
+  position: fixed;
+  bottom: 90px;
+  right: 24px;
+  display: flex; flex-direction: column;
+  gap: 8px;
+  z-index: 950;
+  pointer-events: none;
+}
+.toast {
+  background: var(--bg-card);
+  border: 1px solid var(--neon-green);
+  border-radius: 10px;
+  padding: 12px 16px;
+  font-size: 13px;
+  color: var(--text);
+  min-width: 260px;
+  box-shadow: 0 0 24px var(--neon-green-soft);
+  animation: toastIn 0.3s ease;
+}
+.toast strong { display: block; color: var(--neon-green); margin-bottom: 4px; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; }
+@keyframes toastIn { from { transform: translateX(120%); } to { transform: translateX(0); } }
+
 /* ── Hero "Saldo" ────────────────────────────────────────────── */
 .hero {
   position: relative;
