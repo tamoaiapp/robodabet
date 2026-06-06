@@ -276,14 +276,19 @@ function tamoMsg(role, content) {
   tamoBody.scrollTop = tamoBody.scrollHeight
 }
 
-document.getElementById('tamoai-open').onclick = () => {
+document.getElementById('tamoai-open').addEventListener('click', () => {
   tamoModal.hidden = false
-  if (tamoHistory.length === 0) {
+  tamoModal.style.display = 'flex'
+  // Só insere boas-vindas se a UI não tiver mensagens ainda (evita duplicar)
+  if (tamoBody.children.length === 0) {
     tamoMsg('bot', '👋 Sou a **TamoIA**. Posso te ajudar a entender o bot, configurar risco, interpretar resultados, ou resolver bugs.\n\nPergunta aí.')
   }
   tamoInput.focus()
-}
-document.getElementById('tamoai-close').onclick = () => { tamoModal.hidden = true }
+})
+document.getElementById('tamoai-close').addEventListener('click', () => {
+  tamoModal.hidden = true
+  tamoModal.style.display = 'none'
+})
 
 document.getElementById('tamoai-form').onsubmit = async (e) => {
   e.preventDefault()

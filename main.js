@@ -272,15 +272,42 @@ function registerIpc() {
     })
   })
 
-  // KTO login (autofill)
+  // KTO login — abre Chrome com perfil dedicado + porta CDP + URL do KTO
   ipcMain.handle('bot:kto-login', async () => {
-    return new Promise(resolve => {
-      const out = []
-      runScript('src/casas/kto-login.mjs', [],
-        (line, kind) => out.push({line, kind}),
-        code => resolve({ code, lines: out })
-      )
-    })
+    try {
+      // Acha o chrome.exe (Google ou Edge como fallback)
+      const candidates = [
+        'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+        'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+        path.join(app.getPath('home'), 'AppData', 'Local', 'Google', 'Chrome', 'Application', 'chrome.exe'),
+        'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
+        'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
+      ]
+      const chromePath = candidates.find(p => fs.existsSync(p))
+      if (!chromePath) {
+        notify('Chrome não encontrado', 'Instale o Google Chrome pra usar o robô.')
+        return { code: 1, error: 'chrome_not_found' }
+      }
+
+      const profileDir = path.join(DATA_DIR, 'chrome-profile-kto')
+      fs.mkdirSync(profileDir, { recursive: true })
+
+      const args = [
+        '--remote-debugging-port=9222',
+        `--user-data-dir=${profileDir}`,
+        '--no-first-run',
+        '--no-default-browser-check',
+        'https://www.kto.bet.br/app/login/',
+      ]
+      pushLog(`[kto-login] abrindo ${chromePath}`)
+      spawn(chromePath, args, { detached: true, stdio: 'ignore' }).unref()
+
+      notify('Robô da Bet', 'Chrome aberto — faça login no KTO. Pode fechar essa janela do robô e voltar aqui depois.')
+      return { code: 0, chromePath, profileDir }
+    } catch (e) {
+      pushLog(`[kto-login] erro: ${e.message}`)
+      return { code: 1, error: e.message }
+    }
   })
 
   // Abrir página externa
