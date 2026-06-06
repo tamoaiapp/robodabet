@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Robô da Bet</title>
+  <link rel="icon" type="image/png" href="favicon.png" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- ── Onboarding (1ª abertura, termo legal) ── -->
+  <div class="onboarding" id="onboarding" hidden>
+    <div class="onb-card">
+      <div class="onb-head">
+        <img src="logo.png" alt="" class="onb-logo">
+        <h1>Bem-vindo ao Robô da Bet</h1>
+      </div>
+      <div class="onb-body">
+        <p><strong>Antes de começar, leia com atenção:</strong></p>
+        <ul>
+          <li>O Robô da Bet é uma <strong>ferramenta experimental</strong> de automação no mercado de Total de Escanteios da casa KTO.</li>
+          <li><strong>Apostas envolvem risco real de perda de dinheiro.</strong> Modelo estatístico não garante lucro.</li>
+          <li>O bot opera no seu Chrome usando sua conta KTO. A casa pode bloquear contas que detecte automação (cláusula 4.2 dos termos da KTO).</li>
+          <li>Os valores apostados, ganhos e perdas são <strong>de sua responsabilidade</strong>.</li>
+          <li>Modo recomendado: <strong>SIMULAÇÃO</strong> primeiro (sem apostar dinheiro real) por 1-2 semanas pra entender comportamento.</li>
+          <li>Use apenas dinheiro que você pode perder. Aposta não é fonte de renda. Jogue com responsabilidade.</li>
+        </ul>
+        <label class="onb-check">
+          <input type="checkbox" id="onb-accept">
+          Li, entendi e <strong>aceito os riscos</strong> de usar o Robô da Bet.
+        </label>
+      </div>
+      <div class="onb-actions">
+        <button class="btn-secondary" id="onb-close">Fechar app</button>
+        <button class="btn-primary" id="onb-continue" disabled>Continuar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Titlebar customizada ── -->
+  <div class="titlebar">
+    <div class="titlebar-drag">
+      <img src="logo.png" alt="" class="titlebar-icon">
+      <span class="titlebar-title">Robô da Bet</span>
+    </div>
+    <div class="titlebar-controls">
+      <button class="tb-btn" id="tb-min" title="Minimizar">─</button>
+      <button class="tb-btn" id="tb-max" title="Maximizar">▢</button>
+      <button class="tb-btn tb-close" id="tb-close" title="Fechar">✕</button>
+    </div>
+  </div>
+
+  <div class="app">
+    <!-- ── Sidebar ─────────────────────────────────────── -->
+    <aside class="sidebar">
+      <div class="brand">
+        <img src="logo.png" alt="Robô da Bet" class="brand-logo" onerror="this.style.display='none'">
+        <div class="brand-text">
+          <span class="brand-name">ROBÔ <em>da</em> BET</span>
+          <span class="brand-version" id="version"></span>
+        </div>
+      </div>
+
+      <nav class="nav">
+        <button class="nav-item active" data-page="dashboard">
+          <span class="nav-icon">📊</span> Dashboard
+        </button>
+        <button class="nav-item" data-page="conta">
+          <span class="nav-icon">👤</span> Conta
+        </button>
+        <button class="nav-item" data-page="aposta">
+          <span class="nav-icon">🎯</span> Aposta
+        </button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="status" id="bot-status">
+          <span class="status-dot"></span>
+          <span class="status-text">Standby</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ── Content ─────────────────────────────────────── -->
+    <main class="content">
+      <!-- DASHBOARD -->
+      <section class="page" id="page-dashboard">
+        <h1>Dashboard</h1>
+
+        <div class="hero">
+          <div class="hero-main">
+            <span class="hero-label">SALDO</span>
+            <span class="hero-amount" id="hero-balance">R$ 0,00</span>
+            <span class="hero-sub">KTO · atualizado agora</span>
+          </div>
+          <div class="hero-side">
+            <div class="hero-stat">
+              <span>🔥 STREAK</span><strong id="hero-streak">0</strong>
+            </div>
+            <div class="hero-stat">
+              <span>HOJE</span><strong id="hero-today" class="gain">R$ 0</strong>
+            </div>
+          </div>
+        </div>
+
+        <div class="metrics">
+          <div class="metric">
+            <span class="metric-label">ROI</span>
+            <span class="metric-value" id="m-roi">—</span>
+          </div>
+          <div class="metric">
+            <span class="metric-label">Ganhos</span>
+            <span class="metric-value gain" id="m-wins">—</span>
+          </div>
+          <div class="metric">
+            <span class="metric-label">Perdas</span>
+            <span class="metric-value loss" id="m-losses">—</span>
+          </div>
+          <div class="metric">
+            <span class="metric-label">PNL</span>
+            <span class="metric-value" id="m-pnl">—</span>
+          </div>
+          <div class="metric">
+            <span class="metric-label">Em curso</span>
+            <span class="metric-value" id="m-open">—</span>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <h2>Apostas recentes</h2>
+            <button class="btn-ghost" id="btn-refresh">↻ Atualizar</button>
+          </div>
+          <div class="bets-list" id="bets-list">
+            <div class="empty">Sem apostas ainda. Vá em <strong>Aposta</strong> pra configurar e disparar.</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- CONTA -->
+      <section class="page" id="page-conta" hidden>
+        <h1>Conta — KTO</h1>
+
+        <div class="card">
+          <h2>Login automático</h2>
+          <p class="muted">
+            Robô usa o Chrome do seu PC (perfil dedicado) pra logar no KTO.
+            Mantemos a sessão aberta com as suas credenciais salvas.
+          </p>
+
+          <div class="conta-actions">
+            <button class="btn-primary" id="btn-conta-login">🔐 Logar no KTO</button>
+            <button class="btn-secondary" id="btn-conta-status">Ver status</button>
+          </div>
+
+          <div class="conta-info" id="conta-info">
+            <div class="info-row">
+              <span>Status</span>
+              <strong id="conta-status">desconectado</strong>
+            </div>
+            <div class="info-row">
+              <span>Saldo</span>
+              <strong id="conta-saldo">—</strong>
+            </div>
+            <div class="info-row">
+              <span>Último login</span>
+              <strong id="conta-last">—</strong>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>Segurança</h2>
+          <p class="muted">
+            KTO detecta automação. Robô faz pausas e roda em chunks de até 5 apostas.
+            Se a casa pedir reverificação, atenda no Chrome.
+          </p>
+        </div>
+      </section>
+
+      <!-- APOSTA -->
+      <section class="page" id="page-aposta" hidden>
+        <h1>Configuração de aposta</h1>
+
+        <!-- ── Modo de execução (Paper vs Real) ── -->
+        <div class="card exec-card">
+          <h2>Execução</h2>
+          <div class="exec-grid">
+            <div class="exec-toggle">
+              <button class="exec-btn active" data-exec="paper">
+                <strong>📊 Simulação</strong>
+                <small>captura odd, calcula CLV, NÃO aposta dinheiro real</small>
+              </button>
+              <button class="exec-btn danger" data-exec="real">
+                <strong>💰 Real</strong>
+                <small>aposta com seu dinheiro de verdade</small>
+              </button>
+            </div>
+            <div class="bankroll">
+              <span class="ctrl-label">Banca total</span>
+              <div class="stepper">
+                <button class="step-btn" data-target="cfg-bankroll" data-delta="-10">−</button>
+                <span class="step-prefix">R$</span>
+                <input type="number" id="cfg-bankroll" value="100" min="10" max="100000" step="10">
+                <button class="step-btn" data-target="cfg-bankroll" data-delta="10">+</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── TOPO: 3 controles principais ── -->
+        <div class="card top-controls">
+          <div class="ctrl">
+            <span class="ctrl-label">Valor por aposta</span>
+            <div class="stepper">
+              <button class="step-btn" data-target="cfg-stake" data-delta="-1">−</button>
+              <span class="step-prefix">R$</span>
+              <input type="number" id="cfg-stake" value="2" min="1" max="100" step="0.5">
+              <button class="step-btn" data-target="cfg-stake" data-delta="1">+</button>
+            </div>
+          </div>
+
+          <div class="ctrl">
+            <span class="ctrl-label">Apostas por dia</span>
+            <div class="stepper">
+              <button class="step-btn" data-target="cfg-max" data-delta="-1">−</button>
+              <input type="number" id="cfg-max" value="5" min="1" max="20">
+              <span class="step-suffix">picks</span>
+              <button class="step-btn" data-target="cfg-max" data-delta="1">+</button>
+            </div>
+          </div>
+
+          <div class="ctrl ctrl-risk">
+            <div class="ctrl-risk-head">
+              <span class="ctrl-label">Nível de risco</span>
+              <span class="risk-tag" id="risk-tag">Conservador</span>
+            </div>
+            <div class="risk-slider">
+              <input type="range" id="cfg-risk" min="1" max="10" value="3">
+              <div class="risk-marks">
+                <span>Menos</span>
+                <span>Mais</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── Casa de aposta ── -->
+        <div class="card">
+          <h2>Casa</h2>
+          <div class="casa-grid">
+            <div class="casa-card active" data-casa="kto">
+              <div class="casa-name">KTO</div>
+              <div class="casa-status">✓ Disponível</div>
+            </div>
+            <div class="casa-card disabled" data-casa="betano">
+              <div class="casa-name">Betano</div>
+              <div class="casa-status">Em breve</div>
+            </div>
+            <div class="casa-card disabled" data-casa="superbet">
+              <div class="casa-name">Superbet</div>
+              <div class="casa-status">Em breve</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── Modo: Auto vs Manual ── -->
+        <div class="card">
+          <h2>Modo</h2>
+          <div class="mode-toggle">
+            <button class="mode-btn active" data-mode="auto">
+              <span class="mode-icon">⚡</span>
+              <span class="mode-text">
+                <strong>Automático</strong>
+                <small>recomendado · robô decide tudo</small>
+              </span>
+            </button>
+            <button class="mode-btn" data-mode="manual">
+              <span class="mode-icon">🎛</span>
+              <span class="mode-text">
+                <strong>Manual</strong>
+                <small>avançado · você escolhe mercados</small>
+              </span>
+            </button>
+          </div>
+
+          <div class="mode-panel" id="panel-auto">
+            <p class="muted">
+              Robô escolhe mercado <strong>Total de Escanteios</strong> (validado), modelo calibrado
+              em 87k jogos, EV mínimo definido pelo nível de risco, 1 aposta por jogo.
+            </p>
+          </div>
+
+          <div class="mode-panel" id="panel-manual" hidden>
+            <div class="opt-group">
+              <span class="opt-label">Mercados</span>
+              <div class="check-grid">
+                <label class="check"><input type="checkbox" data-mkt="corners" checked> Total de Escanteios</label>
+                <label class="check"><input type="checkbox" data-mkt="goals_25"> Gols Over/Under 2.5</label>
+                <label class="check"><input type="checkbox" data-mkt="1x2"> Resultado Final (1X2)</label>
+                <label class="check"><input type="checkbox" data-mkt="btts"> Ambos marcam (BTTS)</label>
+                <label class="check"><input type="checkbox" data-mkt="ah"> Handicap Asiático</label>
+                <label class="check"><input type="checkbox" data-mkt="ht"> Primeiro tempo</label>
+              </div>
+            </div>
+
+            <div class="opt-group">
+              <span class="opt-label">Ligas</span>
+              <div class="check-grid">
+                <label class="check"><input type="checkbox" data-lg="wc" checked> Copa do Mundo</label>
+                <label class="check"><input type="checkbox" data-lg="epl"> Premier League</label>
+                <label class="check"><input type="checkbox" data-lg="champ"> EFL Championship</label>
+                <label class="check"><input type="checkbox" data-lg="laliga"> La Liga</label>
+                <label class="check"><input type="checkbox" data-lg="seriea"> Serie A IT</label>
+                <label class="check"><input type="checkbox" data-lg="bund"> Bundesliga</label>
+                <label class="check"><input type="checkbox" data-lg="ligue1"> Ligue 1</label>
+                <label class="check"><input type="checkbox" data-lg="friendly"> Amistosos</label>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="apostar-actions">
+          <button class="btn-secondary" id="btn-cfg-save">💾 Salvar configuração</button>
+          <button class="btn-primary danger" id="btn-cfg-disparar">▶ Disparar batch</button>
+        </div>
+
+        <div class="card">
+          <h2>Log do bot</h2>
+          <pre id="log"></pre>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- ── TamoIA chat (flutuante) ── -->
+  <button class="tamoai-fab" id="tamoai-open" title="Pedir ajuda">
+    <span>🤖</span>
+    <small>Ajuda</small>
+  </button>
+
+  <div class="tamoai-modal" id="tamoai-modal" hidden>
+    <div class="tamoai-card">
+      <div class="tamoai-head">
+        <strong>TamoIA · Suporte</strong>
+        <button class="btn-ghost" id="tamoai-close">✕</button>
+      </div>
+      <div class="tamoai-body" id="tamoai-body"></div>
+      <form class="tamoai-form" id="tamoai-form">
+        <input type="text" id="tamoai-input" placeholder="Pergunta pra TamoIA..." autocomplete="off">
+        <button type="submit" class="btn-primary">Enviar</button>
+      </form>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,111 @@
+name: Build + Release Robô da Bet
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - package.json
+      - main.js
+      - preload.js
+      - 'src/**'
+      - 'renderer/**'
+      - 'build/**'
+      - electron-builder.yml
+      - '.github/workflows/release.yml'
+
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Get version
+        id: ver
+        shell: pwsh
+        run: |
+          $pkg = Get-Content package.json | ConvertFrom-Json
+          $ver = $pkg.version
+          echo "version=$ver" >> $env:GITHUB_OUTPUT
+          echo "tag=v$ver" >> $env:GITHUB_OUTPUT
+
+      - name: Check if release already exists
+        id: check
+        shell: pwsh
+        run: |
+          $tag = '${{ steps.ver.outputs.tag }}'
+          gh release view $tag --repo ${{ github.repository }} --json url *> $null
+          $code = $LASTEXITCODE
+          $global:LASTEXITCODE = 0
+          if ($code -eq 0) {
+            "skip=true" | Add-Content $env:GITHUB_OUTPUT
+            Write-Host "Release $tag ja existe — pulando build."
+          } else {
+            "skip=false" | Add-Content $env:GITHUB_OUTPUT
+            Write-Host "Release $tag NAO existe — vamos buildar."
+          }
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Node 22
+        if: steps.check.outputs.skip != 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Disable code signing
+        if: steps.check.outputs.skip != 'true'
+        shell: pwsh
+        run: echo "CSC_IDENTITY_AUTO_DISCOVERY=false" >> $env:GITHUB_ENV
+
+      - name: Install dependencies
+        if: steps.check.outputs.skip != 'true'
+        run: npm ci --no-audit --no-fund
+
+      - name: Build electron-builder
+        if: steps.check.outputs.skip != 'true'
+        run: npx electron-builder --win --x64 --publish=never
+
+      - name: List artifacts
+        if: steps.check.outputs.skip != 'true'
+        shell: pwsh
+        run: Get-ChildItem dist -File | Select-Object Name,@{N='MB';E={[math]::Round($_.Length/1MB,1)}} | Format-Table -AutoSize
+
+      - name: Release notes
+        if: steps.check.outputs.skip != 'true'
+        shell: pwsh
+        run: |
+          if (Test-Path RELEASE_NOTES.md) {
+            Copy-Item RELEASE_NOTES.md dist/RELEASE_NOTES.md
+          } else {
+            "Robô da Bet v${{ steps.ver.outputs.version }}. Auto-update pega sozinho." | Out-File dist/RELEASE_NOTES.md -Encoding utf8
+          }
+
+      - name: Publish GitHub Release
+        if: steps.check.outputs.skip != 'true'
+        shell: pwsh
+        run: |
+          $tag = '${{ steps.ver.outputs.tag }}'
+          gh release create $tag `
+            --repo ${{ github.repository }} `
+            --title '${{ steps.ver.outputs.version }}' `
+            --notes-file dist/RELEASE_NOTES.md `
+            dist/RoboDaBet-Setup.exe `
+            dist/RoboDaBet-Setup.exe.blockmap `
+            dist/latest.yml
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "create falhou ($LASTEXITCODE), tentando upload com clobber..."
+            $global:LASTEXITCODE = 0
+            gh release upload $tag --repo ${{ github.repository }} --clobber `
+              dist/RoboDaBet-Setup.exe dist/RoboDaBet-Setup.exe.blockmap dist/latest.yml
+          }
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

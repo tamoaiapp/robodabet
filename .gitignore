@@ -1,0 +1,30 @@
+# Build output
+dist/
+out/
+
+# Dependencies
+node_modules/
+
+# Electron temp
+.electron/
+
+# Local dev
+.env
+.env.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# User data
+robodabet-data/
+data/
+
+# Debug
+tools/verify-*.png
+tools/inspect-*

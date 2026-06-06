@@ -1,0 +1,38 @@
+appId: com.iaempresa.robodabet
+productName: Robô da Bet
+artifactName: RoboDaBet-Setup.${ext}
+copyright: Copyright © 2026 iaempresa.app
+
+directories:
+  output: dist
+  buildResources: build
+
+files:
+  - main.js
+  - preload.js
+  - package.json
+  - renderer/**/*
+  - src/**/*
+  - "!node_modules/**/*"
+
+extraResources:
+  - from: src
+    to: src
+    filter: ["**/*.mjs"]
+
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  icon: build/icon.png
+
+nsis:
+  oneClick: true
+  perMachine: false
+  allowToChangeInstallationDirectory: false
+  deleteAppDataOnUninstall: false
+
+publish:
+  provider: github
+  owner: tamoaiapp
+  repo: robodabet
