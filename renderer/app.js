@@ -1,17 +1,40 @@
 // ── Onboarding (1ª abertura) ─────────────────────────────────
 ;(async () => {
-  const s = await window.settings.get()
-  if (!s.acceptedTerms) {
+  try {
+    const s = await window.settings.get()
+    if (s.acceptedTerms) return
+
     const modal = document.getElementById('onboarding')
+    const accept = document.getElementById('onb-accept')
+    const cont = document.getElementById('onb-continue')
+    const close = document.getElementById('onb-close')
+
     modal.hidden = false
-    document.getElementById('onb-accept').onchange = (e) => {
-      document.getElementById('onb-continue').disabled = !e.target.checked
-    }
-    document.getElementById('onb-continue').onclick = async () => {
-      await window.settings.set({ acceptedTerms: true, acceptedAt: new Date().toISOString() })
+    cont.disabled = !accept.checked
+
+    accept.addEventListener('change', () => {
+      cont.disabled = !accept.checked
+    })
+
+    cont.addEventListener('click', async () => {
+      try {
+        await window.settings.set({ acceptedTerms: true, acceptedAt: new Date().toISOString() })
+      } catch (err) {
+        console.error('Falha salvando termos:', err)
+      }
+      // Esconde de qualquer jeito (mesmo se settings falhou)
       modal.hidden = true
-    }
-    document.getElementById('onb-close').onclick = () => window.winApi.close()
+      modal.style.display = 'none'
+    })
+
+    close.addEventListener('click', () => {
+      if (window.winApi?.close) window.winApi.close()
+    })
+  } catch (e) {
+    console.error('Onboarding erro:', e)
+    // Em caso de falha, esconde o modal pra não travar a UI
+    const modal = document.getElementById('onboarding')
+    if (modal) { modal.hidden = true; modal.style.display = 'none' }
   }
 })()
 
