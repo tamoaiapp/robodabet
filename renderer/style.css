@@ -707,15 +707,17 @@ body {
 .onb-head {
   display: flex;
   align-items: center;
-  gap: 16px;
-  margin-bottom: 22px;
-  padding-bottom: 20px;
+  gap: 18px;
+  margin-bottom: 18px;
+  padding-bottom: 18px;
   border-bottom: 1px solid var(--border);
 }
+.onb-head > div { flex: 1; }
 .onb-logo {
-  width: 56px;
-  height: 56px;
+  width: 64px;
+  height: 64px;
   filter: drop-shadow(0 0 10px var(--neon-green-glow));
+  flex-shrink: 0;
 }
 .onb-head h1 {
   font-size: 22px;
@@ -723,36 +725,72 @@ body {
   background: linear-gradient(90deg, #fff, var(--neon-teal));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
+  margin: 0;
 }
-.onb-body p { font-size: 14px; line-height: 1.7; color: var(--text); margin-bottom: 14px; }
-.onb-body ul { list-style: none; margin: 12px 0 22px; }
-.onb-body ul li {
+.onb-tagline {
   font-size: 13px;
-  line-height: 1.7;
   color: var(--text-dim);
-  padding: 8px 0 8px 28px;
-  position: relative;
+  margin: 4px 0 0;
 }
-.onb-body ul li::before {
-  content: '⚠';
-  position: absolute;
-  left: 0;
-  top: 8px;
-  color: var(--gold);
-}
-.onb-body strong { color: var(--text); }
-.onb-check {
+.onb-body { padding-top: 6px; }
+.onb-list { list-style: none; margin: 0 0 22px; padding: 0; }
+.onb-list li {
   display: flex;
   align-items: flex-start;
+  gap: 14px;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.onb-list li:last-child { border-bottom: none; }
+.onb-emoji {
+  font-size: 24px;
+  flex-shrink: 0;
+  width: 36px;
+  text-align: center;
+  padding-top: 2px;
+}
+.onb-list li strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 3px;
+}
+.onb-list li p {
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--text-dim);
+  margin: 0;
+}
+.onb-fine {
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--text-mute);
+  padding: 10px 14px;
+  background: rgba(255,255,255,0.02);
+  border-left: 2px solid rgba(255,255,255,0.08);
+  border-radius: 4px;
+  margin-bottom: 20px;
+}
+.onb-check {
+  display: flex;
+  align-items: center;
   gap: 12px;
   padding: 14px 16px;
   background: var(--bg-elev);
   border: 1px solid var(--border);
   border-radius: 10px;
   cursor: pointer;
-  font-size: 13px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
   line-height: 1.5;
   margin-bottom: 20px;
+  transition: all 0.15s;
+}
+.onb-check:has(input:checked) {
+  border-color: var(--neon-green);
+  background: rgba(0,255,136,0.06);
 }
 .onb-check input { accent-color: var(--neon-green); width: 18px; height: 18px; margin-top: 1px; }
 .onb-actions {

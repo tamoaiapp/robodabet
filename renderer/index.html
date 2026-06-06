@@ -7,31 +7,61 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <!-- ── Onboarding (1ª abertura, termo legal) ── -->
+  <!-- ── Onboarding (1ª abertura) ── -->
   <div class="onboarding" id="onboarding" hidden>
     <div class="onb-card">
       <div class="onb-head">
         <img src="logo.png" alt="" class="onb-logo">
-        <h1>Bem-vindo ao Robô da Bet</h1>
+        <div>
+          <h1>Bem-vindo ao Robô da Bet</h1>
+          <p class="onb-tagline">Vamos te explicar como funciona em 30 segundos.</p>
+        </div>
       </div>
       <div class="onb-body">
-        <p><strong>Antes de começar, leia com atenção:</strong></p>
-        <ul>
-          <li>O Robô da Bet é uma <strong>ferramenta experimental</strong> de automação de apostas esportivas.</li>
-          <li><strong>Apostas envolvem risco real de perda de dinheiro.</strong> Modelo estatístico não garante lucro.</li>
-          <li>O bot opera no seu Chrome usando sua conta. A casa pode bloquear contas que detecte automação.</li>
-          <li>Os valores apostados, ganhos e perdas são <strong>de sua responsabilidade</strong>.</li>
-          <li>Modo recomendado: <strong>SIMULAÇÃO</strong> primeiro (sem apostar dinheiro real) por 1-2 semanas pra entender comportamento.</li>
-          <li>Use apenas dinheiro que você pode perder. Aposta não é fonte de renda. Jogue com responsabilidade.</li>
+        <ul class="onb-list">
+          <li>
+            <span class="onb-emoji">🎯</span>
+            <div>
+              <strong>Aposta sozinho pra você</strong>
+              <p>O robô analisa jogos, calcula valor e aposta no seu navegador automaticamente.</p>
+            </div>
+          </li>
+          <li>
+            <span class="onb-emoji">📊</span>
+            <div>
+              <strong>Modelo estatístico calibrado</strong>
+              <p>Baseado em milhares de jogos históricos. Você define quanto arriscar.</p>
+            </div>
+          </li>
+          <li>
+            <span class="onb-emoji">🎛</span>
+            <div>
+              <strong>Você no controle</strong>
+              <p>Banca, nível de risco, quantas apostas por dia. Pode ligar e desligar quando quiser.</p>
+            </div>
+          </li>
+          <li>
+            <span class="onb-emoji">🧪</span>
+            <div>
+              <strong>Comece em Simulação</strong>
+              <p>Roda sem dinheiro real por uma ou duas semanas pra você ver o robô em ação antes.</p>
+            </div>
+          </li>
         </ul>
+
+        <p class="onb-fine">
+          Aposta esportiva envolve risco — use só o que pode perder e jogue com responsabilidade.
+          Resultados passados não garantem ganhos futuros. Para maiores de 18 anos.
+        </p>
+
         <label class="onb-check">
           <input type="checkbox" id="onb-accept">
-          Li, entendi e <strong>aceito os riscos</strong> de usar o Robô da Bet.
+          Estou pronto pra começar
         </label>
       </div>
       <div class="onb-actions">
-        <button class="btn-secondary" id="onb-close">Fechar app</button>
-        <button class="btn-primary" id="onb-continue" disabled>Continuar</button>
+        <button class="btn-secondary" id="onb-close">Agora não</button>
+        <button class="btn-primary" id="onb-continue" disabled>Continuar →</button>
       </div>
     </div>
   </div>
