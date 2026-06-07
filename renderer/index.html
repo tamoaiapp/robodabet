@@ -61,7 +61,7 @@
       </div>
       <div class="onb-actions">
         <button class="btn-secondary" id="onb-close">Agora não</button>
-        <button class="btn-primary" id="onb-continue" disabled>Continuar →</button>
+        <button class="btn-primary" id="onb-continue">Continuar →</button>
       </div>
     </div>
   </div>
@@ -134,16 +134,19 @@
 
         <div class="hero">
           <div class="hero-main">
-            <span class="hero-label">SALDO</span>
-            <span class="hero-amount" id="hero-balance">R$ 0,00</span>
-            <span class="hero-sub">KTO · atualizado agora</span>
+            <span class="hero-label">SE TUDO DER CERTO</span>
+            <span class="hero-amount" id="hero-potential">+ R$ 0,00</span>
+            <span class="hero-sub">Lucro potencial das apostas abertas</span>
           </div>
           <div class="hero-side">
             <div class="hero-stat">
-              <span>🔥 STREAK</span><strong id="hero-streak">0</strong>
+              <span>EM JOGO</span><strong id="hero-open">R$ 0</strong>
             </div>
             <div class="hero-stat">
               <span>HOJE</span><strong id="hero-today" class="gain">R$ 0</strong>
+            </div>
+            <div class="hero-stat">
+              <span>🔥 STREAK</span><strong id="hero-streak">0</strong>
             </div>
           </div>
         </div>
@@ -173,8 +176,14 @@
 
         <div class="card">
           <div class="card-head">
-            <h2>Apostas recentes</h2>
-            <button class="btn-ghost" id="btn-refresh">↻ Atualizar</button>
+            <h2>Histórico de apostas</h2>
+            <div class="bets-filter">
+              <button class="filter-btn active" data-filter="all">Todas</button>
+              <button class="filter-btn" data-filter="open">Abertas</button>
+              <button class="filter-btn" data-filter="won">Ganhas</button>
+              <button class="filter-btn" data-filter="lost">Perdidas</button>
+              <button class="btn-ghost" id="btn-refresh">↻</button>
+            </div>
           </div>
           <div class="bets-list" id="bets-list">
             <div class="empty">Sem apostas ainda. Vá em <strong>Aposta</strong> pra configurar e disparar.</div>
@@ -306,6 +315,35 @@
               <div class="casa-name">Superbet</div>
               <div class="casa-status">Em breve</div>
             </div>
+          </div>
+        </div>
+
+        <!-- ── Limite diário + frequência ── -->
+        <div class="card">
+          <h2>Limite diário</h2>
+          <div class="form-grid">
+            <div class="field">
+              <span>Apostas máx. POR DIA</span>
+              <div class="stepper">
+                <button class="step-btn" data-target="cfg-max-per-day" data-delta="-1">−</button>
+                <input type="number" id="cfg-max-per-day" value="10" min="1" max="50">
+                <span class="step-suffix">picks</span>
+                <button class="step-btn" data-target="cfg-max-per-day" data-delta="1">+</button>
+              </div>
+            </div>
+            <div class="field">
+              <span>Quando o robô aposta</span>
+              <select id="cfg-cycle-hours">
+                <option value="2">A cada 2h (até 12×/dia)</option>
+                <option value="6">A cada 6h (até 4×/dia)</option>
+                <option value="12">A cada 12h (manhã + noite)</option>
+                <option value="24" selected>1× por dia</option>
+              </select>
+            </div>
+          </div>
+          <div class="daily-status">
+            <span class="daily-info">Hoje: <strong id="cfg-today-count">—</strong> apostas</span>
+            <button class="btn-secondary" id="btn-reset-daily">🔓 Liberar mais apostas hoje</button>
           </div>
         </div>
 

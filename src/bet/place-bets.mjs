@@ -1,13 +1,13 @@
-import { chromium } from 'playwright-core';
 import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
+import { openChrome } from '../casas/chrome-launcher.mjs';
 
 const DATA_DIR = process.env.BOT_DATA_DIR || 'data';
 const MODE = process.env.BOT_MODE || 'treino'; // 'real' | 'treino' | 'paper'
 const PAPER = MODE === 'paper';
 const LIVE = !PAPER; // só clica "Apostar" se NÃO for paper
-const CDP_PORT = process.env.BOT_CDP_PORT || '9222';
+const CDP_PORT = +(process.env.BOT_CDP_PORT || 9333);
 
 const clvDb = new DatabaseSync(join(DATA_DIR, 'bot.db'));
 const insertClv = clvDb.prepare(`INSERT INTO bet_clv
@@ -56,11 +56,45 @@ async function placeOne(ctx, op, i, total) {
     await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60_000 });
     await sleepH(5_000, 7_000);
 
+    // Auto-login: se KTO redirecionou pra tela de login, faz autofill+click
     if (page.url().includes('/app/login/')) {
-      result.status = 'failed';
-      result.reason = 'login_redirect';
-      await page.close();
-      return result;
+      console.log(`  [auto-login] redirecionou pra login — tentando entrar`);
+      // Trigger autofill: clica nos campos pra Chrome preencher senha salva
+      try { await page.click('input[type="email"]', { timeout: 2000 }); } catch {}
+      await sleepH(400, 700);
+      try { await page.click('input[type="password"]'); } catch {}
+      await sleepH(800, 1500);
+      // Confere se Chrome preencheu autofill
+      const filled = await page.evaluate(() => {
+        const e = document.querySelector('input[type="email"]');
+        const p = document.querySelector('input[type="password"]');
+        return { email: !!e?.value, pwd: (p?.value || '').length > 0 };
+      });
+      console.log(`  [auto-login] autofill email=${filled.email} pwd=${filled.pwd}`);
+      // Clica botão Entrar
+      const ok = await page.evaluate(() => {
+        const btns = Array.from(document.querySelectorAll('button'));
+        const b = btns.find(x => /^entrar$/i.test((x.innerText || '').trim()));
+        if (!b) return false;
+        b.click();
+        return true;
+      });
+      console.log(`  [auto-login] Entrar clicado: ${ok}`);
+      // Espera redirect (até 12s)
+      let logged = false;
+      for (let w = 0; w < 12; w++) {
+        await sleepH(1000, 1100);
+        if (!page.url().includes('/app/login/')) { logged = true; break; }
+      }
+      if (!logged) {
+        result.status = 'failed';
+        result.reason = 'login_redirect_no_autofill';
+        await page.close();
+        return result;
+      }
+      // Re-navega pra URL original da pick
+      await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60_000 });
+      await sleepH(3_000, 5_000);
     }
 
     // POLL até a tab "Escanteios" aparecer (Kambi iframe pode demorar carregar)
@@ -283,28 +317,36 @@ async function placeOne(ctx, op, i, total) {
   return result;
 }
 
-const browser = await chromium.connectOverCDP(`http://localhost:${CDP_PORT}`);
-const ctx = browser.contexts()[0];
+// Abre Chrome minimizado + perfil dedicado, conecta CDP, fecha tudo no fim
+const profileDir = join(DATA_DIR, 'chrome-profile-kto');
+console.log('Abrindo Chrome minimizado...');
+const { ctx, close } = await openChrome({ profileDir, port: CDP_PORT, startMinimized: true });
 
 const results = [];
-for (let i = 0; i < TOP20.length; i++) {
-  const r = await placeOne(ctx, TOP20[i], i, TOP20.length);
-  results.push(r);
-  await sleepH(3_000, 5_000);
+try {
+  for (let i = 0; i < TOP20.length; i++) {
+    const r = await placeOne(ctx, TOP20[i], i, TOP20.length);
+    results.push(r);
+    await sleepH(3_000, 5_000);
+  }
+
+  // Sumário
+  const placed = results.filter(r => r.status === 'placed');
+  const failed = results.filter(r => r.status === 'failed' || r.status === 'aborted');
+  const stakeReal = placed.reduce((a, r) => a + (r.op?.stake || 0), 0);
+  console.log('\n=========== SUMÁRIO ===========');
+  console.log(`✓ placed: ${placed.length}`);
+  console.log(`✗ failed/aborted: ${failed.length}`);
+  console.log(`Stake total: R$${stakeReal.toFixed(2)}`);
+
+  if (failed.length > 0) {
+    console.log('\nFALHAS:');
+    failed.forEach(r => console.log(`  ${r.op.match} ${r.op.side} ${r.op.line}: ${r.reason}`));
+  }
+
+  writeFileSync(join(DATA_DIR, 'corner-batch-result.json'), JSON.stringify(results, null, 2));
+  console.log(`\nResultado salvo em ${DATA_DIR}/corner-batch-result.json`);
+} finally {
+  await close();
+  clvDb.close();
 }
-
-// Sumário
-const placed = results.filter(r => r.status === 'placed');
-const failed = results.filter(r => r.status === 'failed' || r.status === 'aborted');
-console.log('\n=========== SUMÁRIO ===========');
-console.log(`✓ placed: ${placed.length}`);
-console.log(`✗ failed/aborted: ${failed.length}`);
-console.log(`Stake total: R$${placed.length * 2}`);
-
-if (failed.length > 0) {
-  console.log('\nFALHAS:');
-  failed.forEach(r => console.log(`  ${r.op.match} ${r.op.side} ${r.op.line}: ${r.reason}`));
-}
-
-writeFileSync('data/corner-batch-result.json', JSON.stringify(results, null, 2));
-console.log('\nResultado salvo em data/corner-batch-result.json');

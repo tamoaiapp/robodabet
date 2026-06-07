@@ -1,7 +1,9 @@
 // Schema do CLV tracking — cria tabela bet_clv se não existir
 import { DatabaseSync } from 'node:sqlite';
+import { join } from 'node:path';
 
-const db = new DatabaseSync('data/bot.db');
+const DATA_DIR = process.env.BOT_DATA_DIR || 'data';
+const db = new DatabaseSync(join(DATA_DIR, 'bot.db'));
 
 db.exec(`
 CREATE TABLE IF NOT EXISTS bet_clv (

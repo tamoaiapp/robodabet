@@ -2,7 +2,7 @@
 import { chromium } from 'playwright-core';
 import { mkdirSync } from 'node:fs';
 
-const browser = await chromium.connectOverCDP('http://localhost:9222');
+const browser = await chromium.connectOverCDP('http://localhost:9333');
 const ctx = browser.contexts()[0];
 
 // Achar uma tab já existente em /app/login/ ou abrir nova

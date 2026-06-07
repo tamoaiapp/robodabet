@@ -28,3 +28,8 @@ data/
 # Debug
 tools/verify-*.png
 tools/inspect-*
+
+# Dev tools locais
+check-state.mjs
+reset-bets.mjs
+test-cdp.mjs

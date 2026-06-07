@@ -1,40 +1,61 @@
 // ── Onboarding (1ª abertura) ─────────────────────────────────
+const onbModal = document.getElementById('onboarding')
+const onbAccept = document.getElementById('onb-accept')
+const onbContinue = document.getElementById('onb-continue')
+const onbClose = document.getElementById('onb-close')
+
+console.log('[onboarding] setup', { modal: !!onbModal, accept: !!onbAccept, cont: !!onbContinue, close: !!onbClose })
+
+function hideOnboarding() {
+  onbModal.hidden = true
+  onbModal.style.display = 'none'
+}
+
+if (onbContinue) {
+  onbContinue.addEventListener('click', async () => {
+    console.log('[onboarding] CONTINUAR click, checked =', onbAccept?.checked)
+    if (!onbAccept?.checked) {
+      const label = onbAccept?.closest('.onb-check')
+      if (label) {
+        label.style.borderColor = '#ff3050'
+        label.style.transition = 'border-color 0.3s'
+        setTimeout(() => { label.style.borderColor = '' }, 1200)
+      }
+      return
+    }
+    try {
+      await window.settings.set({ acceptedTerms: true, acceptedAt: new Date().toISOString() })
+      console.log('[onboarding] settings salvos')
+    } catch (err) {
+      console.error('[onboarding] falha salvando termos:', err)
+    }
+    hideOnboarding()
+  })
+} else {
+  console.error('[onboarding] botão Continuar não encontrado!')
+}
+
+if (onbClose) {
+  onbClose.addEventListener('click', () => {
+    if (window.winApi?.close) window.winApi.close()
+  })
+}
+
+// Decide se mostra ou esconde o modal baseado no settings
 ;(async () => {
   try {
     const s = await window.settings.get()
-    if (s.acceptedTerms) return
-
-    const modal = document.getElementById('onboarding')
-    const accept = document.getElementById('onb-accept')
-    const cont = document.getElementById('onb-continue')
-    const close = document.getElementById('onb-close')
-
-    modal.hidden = false
-    cont.disabled = !accept.checked
-
-    accept.addEventListener('change', () => {
-      cont.disabled = !accept.checked
-    })
-
-    cont.addEventListener('click', async () => {
-      try {
-        await window.settings.set({ acceptedTerms: true, acceptedAt: new Date().toISOString() })
-      } catch (err) {
-        console.error('Falha salvando termos:', err)
-      }
-      // Esconde de qualquer jeito (mesmo se settings falhou)
-      modal.hidden = true
-      modal.style.display = 'none'
-    })
-
-    close.addEventListener('click', () => {
-      if (window.winApi?.close) window.winApi.close()
-    })
+    if (s.acceptedTerms) {
+      hideOnboarding()
+    } else {
+      onbModal.hidden = false
+      onbModal.style.display = 'flex'
+    }
   } catch (e) {
-    console.error('Onboarding erro:', e)
-    // Em caso de falha, esconde o modal pra não travar a UI
-    const modal = document.getElementById('onboarding')
-    if (modal) { modal.hidden = true; modal.style.display = 'none' }
+    console.error('[onboarding] settings.get erro:', e)
+    // Em caso de erro de settings, mostra o modal pra não travar UI
+    onbModal.hidden = false
+    onbModal.style.display = 'flex'
   }
 })()
 
@@ -64,7 +85,14 @@ function append(line, kind = '') {
   log.appendChild(div)
   log.scrollTop = log.scrollHeight
 }
-window.bot.onLog(({ line, kind }) => append(line, kind === 'err' ? 'err' : ''))
+window.bot.onLog(({ line, kind }) => {
+  let cls = ''
+  if (kind === 'err') {
+    if (/Warning|experimental feature|trace-warnings|deprecation/i.test(line)) cls = 'warn'
+    else cls = 'err'
+  } else if (/✓ APOSTA CONFIRMADA|placed|✓/i.test(line)) cls = 'ok'
+  append(line, cls)
+})
 
 // ── Versão app ────────────────────────────────────────────────
 window.appApi.info().then((info) => {
@@ -73,15 +101,74 @@ window.appApi.info().then((info) => {
 })
 
 // ── DASHBOARD: métricas + lista (via bot:stats) ────────────────
-function fmt(v, prefix = '') {
+function fmtBR(v, prefix = '') {
   if (v == null || isNaN(v)) return '—'
-  return prefix + (Math.abs(v) < 100 ? v.toFixed(2) : v.toFixed(0))
+  return prefix + Math.abs(v).toFixed(2).replace('.', ',')
+}
+function fmtBRSigned(v, prefix = '') {
+  if (v == null || isNaN(v)) return '—'
+  const sign = v > 0 ? '+ ' : v < 0 ? '- ' : ''
+  return sign + prefix + Math.abs(v).toFixed(2).replace('.', ',')
 }
 function fmtPct(v) {
   if (v == null || isNaN(v)) return '—'
   const sign = v >= 0 ? '+' : ''
   return sign + v.toFixed(1) + '%'
 }
+function fmtKickoff(iso) {
+  if (!iso) return '—'
+  const d = new Date(iso)
+  const now = new Date()
+  const sameDay = d.toDateString() === now.toDateString()
+  if (sameDay) return 'hoje ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+  const tomorrow = new Date(now); tomorrow.setDate(now.getDate() + 1)
+  if (d.toDateString() === tomorrow.toDateString()) return 'amanhã ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+  return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+}
+
+let dashboardState = { all: [], filter: 'all' }
+
+function renderBets() {
+  const { all, filter } = dashboardState
+  const filtered = filter === 'all' ? all : all.filter(b => b.result === filter)
+  const list = $('#bets-list')
+  if (!list) return
+  if (!filtered || filtered.length === 0) {
+    list.innerHTML = `<div class="empty">${filter === 'all' ? 'Sem apostas ainda. Vá em <strong>Aposta</strong> pra disparar.' : 'Nenhuma aposta nesse filtro.'}</div>`
+    return
+  }
+  list.innerHTML = filtered.map(b => {
+    const isOpen = b.result === 'open'
+    const won = b.result === 'won'
+    const lost = b.result === 'lost'
+    const cls = won ? 'won' : lost ? 'lost' : 'open'
+    const ico = won ? '✓' : lost ? '✗' : '⌛'
+    const potential = isOpen ? b.stake * (b.odd_taken - 1) : null
+    const rightLabel = isOpen
+      ? `<span class="bet-pot">+ R$ ${potential.toFixed(2).replace('.', ',')}</span><span class="bet-pot-label">se ganhar</span>`
+      : `<span class="bet-pnl ${b.pnl >= 0 ? 'gain' : 'loss'}">${fmtBRSigned(b.pnl, 'R$ ')}</span><span class="bet-pot-label">${won ? 'ganho' : 'perda'}</span>`
+    return `<div class="bet ${cls}">
+      <div class="bet-status-col">
+        <span class="bet-ico">${ico}</span>
+        ${isOpen ? '<span class="bet-pulse"></span>' : ''}
+      </div>
+      <div class="bet-main">
+        <div class="bet-match">${b.match}</div>
+        <div class="bet-meta">
+          <span class="bet-tag">${b.league || '—'}</span>
+          <span class="bet-pick">${b.side} ${b.line}</span>
+          <span class="bet-kickoff">${fmtKickoff(b.kickoff_at)}</span>
+        </div>
+      </div>
+      <div class="bet-odds">
+        <div class="bet-odd">${b.odd_taken?.toFixed(2)}</div>
+        <div class="bet-stake">R$ ${b.stake.toFixed(2).replace('.', ',')}</div>
+      </div>
+      <div class="bet-result">${rightLabel}</div>
+    </div>`
+  }).join('')
+}
+
 async function loadDashboard() {
   const s = await window.bot.stats()
   if (!s.exists) {
@@ -93,35 +180,34 @@ async function loadDashboard() {
   $('#m-wins').textContent = s.wins ?? 0
   $('#m-losses').textContent = s.losses ?? 0
   $('#m-open').textContent = s.open ?? 0
-  $('#m-pnl').textContent = fmt(s.pnl, 'R$ ')
+  $('#m-pnl').textContent = fmtBRSigned(s.pnl, 'R$ ')
   $('#m-pnl').className = 'metric-value ' + (s.pnl >= 0 ? 'gain' : 'loss')
 
-  // Hero
+  // Hero — estimativa de ganho potencial das apostas abertas
+  if ($('#hero-potential')) {
+    $('#hero-potential').textContent = '+ R$ ' + (s.potentialGain || 0).toFixed(2).replace('.', ',')
+  }
+  if ($('#hero-open')) {
+    $('#hero-open').textContent = 'R$ ' + (s.stakeOpen || 0).toFixed(2).replace('.', ',')
+  }
   if ($('#hero-today')) {
-    $('#hero-today').textContent = fmt(s.pnlToday, 'R$ ')
-    $('#hero-today').className = 'gain'
-    if (s.pnlToday < 0) $('#hero-today').className = 'loss'
+    $('#hero-today').textContent = fmtBRSigned(s.pnlToday, 'R$ ')
+    $('#hero-today').className = s.pnlToday < 0 ? 'loss' : 'gain'
   }
 
-  // Lista de apostas recentes
-  const list = $('#bets-list')
-  if (s.recent && s.recent.length && list) {
-    list.innerHTML = s.recent.map(b => {
-      const ico = b.result === 'won' ? '✓' : b.result === 'lost' ? '✗' : '⌛'
-      const cls = b.result === 'won' ? 'won' : b.result === 'lost' ? 'lost' : 'open'
-      const pnl = b.pnl != null ? `R$${b.pnl.toFixed(2)}` : '—'
-      return `<div class="bet ${cls}">
-        <div>
-          <div class="match">${ico} ${b.match}</div>
-          <div class="meta">${b.side} ${b.line} · R$${b.stake.toFixed(2)}</div>
-        </div>
-        <div class="odd">${b.odd_taken?.toFixed(2)}</div>
-        <div class="status">${b.result === 'open' ? 'aberta' : pnl}</div>
-        <div class="meta">${(b.kickoff_at || '').substring(11, 16)}</div>
-      </div>`
-    }).join('')
-  }
+  dashboardState.all = s.all || []
+  renderBets()
 }
+
+// Filtros
+$$('.filter-btn').forEach(b => {
+  b.addEventListener('click', () => {
+    $$('.filter-btn').forEach(x => x.classList.remove('active'))
+    b.classList.add('active')
+    dashboardState.filter = b.dataset.filter
+    renderBets()
+  })
+})
 
 $('#btn-refresh').onclick = loadDashboard
 
@@ -207,6 +293,8 @@ function getCfg() {
   return {
     stake: +$('#cfg-stake').value,
     max: +$('#cfg-max').value,
+    maxPerDay: +($('#cfg-max-per-day')?.value || 10),
+    cycleHours: +($('#cfg-cycle-hours')?.value || 24),
     risk: +$('#cfg-risk').value,
     bankroll: +$('#cfg-bankroll').value,
     mode: document.querySelector('.exec-btn.active')?.dataset.exec || 'paper',
@@ -228,6 +316,8 @@ function loadCfg() {
     const cfg = JSON.parse(localStorage.getItem(CFG_KEY) || '{}')
     if (cfg.stake) $('#cfg-stake').value = cfg.stake
     if (cfg.max) $('#cfg-max').value = cfg.max
+    if (cfg.maxPerDay && $('#cfg-max-per-day')) $('#cfg-max-per-day').value = cfg.maxPerDay
+    if (cfg.cycleHours && $('#cfg-cycle-hours')) $('#cfg-cycle-hours').value = cfg.cycleHours
     if (cfg.bankroll) $('#cfg-bankroll').value = cfg.bankroll
     if (cfg.risk) { $('#cfg-risk').value = cfg.risk; updateRisk() }
     if (cfg.mode) {
@@ -248,6 +338,31 @@ $('#btn-cfg-save').onclick = () => {
   saveCfg()
   append('✓ Configuração salva.', 'ok')
 }
+
+const btnResetDaily = document.getElementById('btn-reset-daily')
+if (btnResetDaily) {
+  btnResetDaily.addEventListener('click', async () => {
+    if (!confirm('Liberar o limite de hoje?\nO bot vai poder apostar mais picks nas próximas horas.')) return
+    try {
+      const r = await window.bot.resetDaily()
+      append(`✓ Limite liberado às ${new Date(r.resetAt).toLocaleTimeString('pt-BR')}`, 'ok')
+      updateTodayCount()
+    } catch (e) { append(`✗ Erro: ${e.message}`, 'err') }
+  })
+}
+
+async function updateTodayCount() {
+  try {
+    const s = await window.bot.stats()
+    if (!s.exists) return
+    const today = new Date().toISOString().substring(0, 10)
+    const todayBets = (s.all || []).filter(b => (b.taken_at || '').substring(0, 10) === today).length
+    const el = document.getElementById('cfg-today-count')
+    if (el) el.textContent = todayBets
+  } catch {}
+}
+updateTodayCount()
+setInterval(updateTodayCount, 30000)
 
 $('#btn-cfg-disparar').onclick = async () => {
   const cfg = saveCfg()
