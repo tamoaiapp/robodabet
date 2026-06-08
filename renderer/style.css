@@ -1430,6 +1430,8 @@ button:hover { border-color: var(--border-hover); background: var(--bg-card); }
 }
 
 /* Banner de atualizacao sticky no topo */
+/* [hidden] HTML precisa de !important pra sobrescrever display:flex */
+.update-banner[hidden] { display: none !important; }
 .update-banner {
   position: fixed;
   top: 32px;
