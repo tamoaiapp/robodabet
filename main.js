@@ -82,8 +82,14 @@ function runScript(scriptPath, args = [], onLine, onDone) {
     onLine('⚠ AVISO: Node não encontrado no sistema. Usando Electron como fallback (pode dar timeout CDP).', 'warn')
   }
 
+  // Quando packaged, scripts estao em app.asar.unpacked/src/... (definido em
+  // asarUnpack no electron-builder.yml). cwd precisa apontar pra raiz unpacked
+  // pra Node spawned achar tanto o script quanto node_modules/playwright-core.
+  const cwd = app.isPackaged
+    ? path.join(process.resourcesPath, 'app.asar.unpacked')
+    : __dirname
   const child = spawn(nodePath, [scriptPath, ...args], {
-    cwd: app.isPackaged ? process.resourcesPath : __dirname,
+    cwd,
     env,
     windowsHide: true,
   })

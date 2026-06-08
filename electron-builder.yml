@@ -13,12 +13,19 @@ files:
   - package.json
   - renderer/**/*
   - src/**/*
-  - "!node_modules/**/*"
+  - node_modules/**/*
+  - "!**/{CHANGELOG.md,README.md,readme.md}"
+  - "!**/*.map"
 
-extraResources:
-  - from: src
-    to: src
-    filter: ["**/*.mjs"]
+# Tira o que o Node child process precisa ler do asar:
+# - src/**/*.mjs sao spawnados como scripts externos via spawn(node, 'src/.../x.mjs')
+# - playwright-core e suas deps sao importadas por chrome-launcher.mjs
+# Quando spawnamos um Node externo (system node.exe), ele NAO consegue ler
+# de dentro do asar. Precisa estar em app.asar.unpacked.
+asarUnpack:
+  - "src/**/*"
+  - "node_modules/playwright-core/**/*"
+  - "node_modules/playwright/**/*"
 
 win:
   target:
