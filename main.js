@@ -538,8 +538,40 @@ ipcMain.on('win:maximize', () => {
 ipcMain.on('win:close', () => win?.close())
 
 // ── Auto-update via GitHub Releases ──────────────────────────
+// Limpa cache "zumbi" do electron-updater: update-info.json sem campo version
+// (sintoma: banner verde "Atualização nova baixada" sem versão real, botão
+// "Reiniciar agora" falha porque o installer cached é incompleto/desatualizado).
+// Tem que rodar ANTES do setupAutoUpdate.
+function cleanZombieUpdateCache() {
+  try {
+    const updaterDir = path.join(app.getPath('appData'), '..', 'Local', 'robodabet-updater')
+    const pendingDir = path.join(updaterDir, 'pending')
+    const updateInfoPath = path.join(pendingDir, 'update-info.json')
+    if (!fs.existsSync(updateInfoPath)) return
+
+    let isZombie = false
+    try {
+      const info = JSON.parse(fs.readFileSync(updateInfoPath, 'utf8'))
+      // Zumbi se: sem versão OU versão igual à atual
+      if (!info.version || info.version === app.getVersion()) isZombie = true
+    } catch {
+      isZombie = true  // não dá pra ler = zumbi
+    }
+
+    if (isZombie) {
+      console.log('[update] cache zumbi detectado, limpando...')
+      for (const f of ['pending', 'installer.exe', 'current.blockmap']) {
+        try { fs.rmSync(path.join(updaterDir, f), { recursive: true, force: true }) } catch {}
+      }
+    }
+  } catch (e) {
+    console.error('[update] cleanZombieUpdateCache erro:', e?.message)
+  }
+}
+
 function setupAutoUpdate() {
   if (!app.isPackaged) return
+  cleanZombieUpdateCache()
   try {
     const { autoUpdater } = require('electron-updater')
     autoUpdater.autoDownload = true
