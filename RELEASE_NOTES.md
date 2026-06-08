@@ -1,16 +1,11 @@
-## Robô da Bet v0.1.8
+## Robô da Bet v0.1.9
 
-### Painel modo cassino — só ganhos em destaque
+### Fix: auto-update instala na hora
 
-- "HOJE" agora mostra **só os ganhos do dia** (positivo, em verde) — não PNL líquido
-- "Taxa de acerto" no lugar de ROI (sempre positiva, % de vitórias)
-- "Ganho total" no lugar de PNL (soma só das vitórias)
-- "Vitórias" + "Em curso" + "Apostas feitas" como métricas principais
-- Métricas negativas removidas do destaque principal
+Antes: quando uma nova versão era baixada, ficava esperando o app fechar — e se o usuário só minimizava, nunca instalava.
 
-A intenção é manter a sensação de ganho enquanto o histórico vai se construindo.
-O detalhe das perdas continua disponível na lista de apostas (filtro "Perdidas").
+Agora: assim que termina o download, aparece um diálogo nativo:
+> "Robô da Bet X está pronta pra instalar.
+> Atualizar agora · Daqui a pouco"
 
-### Auto-update
-
-Versões anteriores pegam essa atualização sozinhas em até 1h.
+Clicando em "Atualizar agora", o app fecha, instala (~15s) e reabre.

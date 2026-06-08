@@ -550,8 +550,24 @@ function setupAutoUpdate() {
       win?.webContents.send('update:status', { state: 'downloading', percent: Math.round(p.percent) })
     })
     autoUpdater.on('update-downloaded', (info) => {
-      console.log('[update] baixado, sera instalado ao fechar')
+      console.log('[update] baixado, vai instalar agora')
       win?.webContents.send('update:status', { state: 'ready', version: info.version })
+      // Dialog nativo pedindo confirmacao + instalacao imediata
+      const { dialog } = require('electron')
+      dialog.showMessageBox(win, {
+        type: 'info',
+        title: 'Atualização disponível',
+        message: `Robô da Bet ${info.version} está pronta pra instalar.`,
+        detail: 'O app vai fechar, instalar a atualização e abrir de novo. Leva ~15 segundos.',
+        buttons: ['Atualizar agora', 'Daqui a pouco'],
+        defaultId: 0,
+        cancelId: 1,
+        noLink: true,
+      }).then(({ response }) => {
+        if (response === 0) {
+          try { autoUpdater.quitAndInstall(false, true) } catch (e) { console.error('[update] quitAndInstall err:', e?.message) }
+        }
+      })
     })
 
     autoUpdater.checkForUpdatesAndNotify()
