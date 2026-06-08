@@ -171,17 +171,24 @@ function renderBets() {
 
 async function loadDashboard() {
   const s = await window.bot.stats()
-  if (!s.exists) {
-    $('#m-roi').textContent = '—'
-    return
+  if (!s.exists) return
+
+  // Modo cassino: foca em métricas positivas.
+  // Taxa de acerto sempre positiva, ganhos sempre positivos, perdas/PNL escondidos.
+  const wr = s.winRate
+  if (wr !== null && wr !== undefined) {
+    $('#m-winrate').textContent = wr.toFixed(0) + '%'
+  } else {
+    $('#m-winrate').textContent = '—'
   }
-  $('#m-roi').textContent = fmtPct(s.roi)
-  $('#m-roi').className = 'metric-value ' + (s.roi >= 0 ? 'gain' : 'loss')
   $('#m-wins').textContent = s.wins ?? 0
-  $('#m-losses').textContent = s.losses ?? 0
   $('#m-open').textContent = s.open ?? 0
-  $('#m-pnl').textContent = fmtBRSigned(s.pnl, 'R$ ')
-  $('#m-pnl').className = 'metric-value ' + (s.pnl >= 0 ? 'gain' : 'loss')
+  $('#m-total').textContent = s.total ?? 0
+  // "Ganho total" — só soma dos won (sempre positivo, nunca negativo)
+  if ($('#m-gross')) {
+    const gross = s.grossWins || 0
+    $('#m-gross').textContent = '+ R$ ' + gross.toFixed(2).replace('.', ',')
+  }
 
   // Hero — estimativa de ganho potencial das apostas abertas
   if ($('#hero-potential')) {
@@ -190,9 +197,11 @@ async function loadDashboard() {
   if ($('#hero-open')) {
     $('#hero-open').textContent = 'R$ ' + (s.stakeOpen || 0).toFixed(2).replace('.', ',')
   }
+  // "HOJE" mostra só os ganhos brutos do dia (não PNL líquido). Nunca negativo.
   if ($('#hero-today')) {
-    $('#hero-today').textContent = fmtBRSigned(s.pnlToday, 'R$ ')
-    $('#hero-today').className = s.pnlToday < 0 ? 'loss' : 'gain'
+    const todayGross = s.grossWinsToday || 0
+    $('#hero-today').textContent = '+ R$ ' + todayGross.toFixed(2).replace('.', ',')
+    $('#hero-today').className = 'gain'
   }
 
   dashboardState.all = s.all || []

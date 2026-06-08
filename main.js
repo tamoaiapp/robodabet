@@ -397,15 +397,22 @@ function registerIpc() {
         SUM(CASE WHEN result='open' THEN stake ELSE 0 END) stake_open,
         SUM(CASE WHEN result='open' THEN stake * (odd_taken - 1) ELSE 0 END) potential_gain,
         COALESCE(SUM(pnl), 0) pnl_total,
+        COALESCE(SUM(CASE WHEN result='won' THEN pnl ELSE 0 END), 0) gross_wins,
         AVG(CASE WHEN clv_pct IS NOT NULL THEN clv_pct END) avg_clv
         FROM bet_clv WHERE market='corners'`).get()
       const today = new Date().toISOString().substring(0, 10)
-      const todayRow = db.prepare(`SELECT COALESCE(SUM(pnl), 0) pnl, COUNT(*) n
+      const todayRow = db.prepare(`SELECT
+        COALESCE(SUM(pnl), 0) pnl,
+        COALESCE(SUM(CASE WHEN result='won' THEN pnl ELSE 0 END), 0) gross_wins,
+        COUNT(*) n
         FROM bet_clv WHERE date(settled_at)=? AND result IN ('won','lost')`).get(today)
       const all = db.prepare(`SELECT match, league, side, line, odd_taken, stake, result, pnl, kickoff_at, taken_at
         FROM bet_clv WHERE market='corners' ORDER BY taken_at DESC`).all()
       db.close()
       const roi = summary.stake_settled > 0 ? (summary.pnl_total / summary.stake_settled * 100) : null
+      // Win rate como métrica positiva (ao invés de ROI que pode ser negativo)
+      const settled = (summary.wins ?? 0) + (summary.losses ?? 0)
+      const winRate = settled > 0 ? (summary.wins / settled * 100) : null
       return {
         exists: true,
         total: summary.total,
@@ -416,9 +423,12 @@ function registerIpc() {
         stakeOpen: summary.stake_open,
         potentialGain: summary.potential_gain,
         pnl: summary.pnl_total,
+        grossWins: summary.gross_wins,     // soma só dos won (positivo)
         roi,
+        winRate,                            // % de acerto (sempre positivo)
         avgClv: summary.avg_clv,
         pnlToday: todayRow.pnl,
+        grossWinsToday: todayRow.gross_wins, // só ganhos do dia
         all,
         recent: all.slice(0, 20),
       }
