@@ -27,6 +27,11 @@ win:
   icon: build/icon.png
 
 nsis:
+  # GUID FIXO pro auto-update funcionar:
+  # sem isso, cada build gera um GUID novo e o NSIS trata cada versao como app
+  # diferente — instala lado a lado em vez de atualizar no lugar.
+  # Mesmo padrao do PostMaster (que tinha esse mesmo bug e foi corrigido em v1.0.30).
+  guid: 55519ef3-519e-4822-9f85-917014a75ee0
   oneClick: true
   perMachine: false
   allowToChangeInstallationDirectory: false
