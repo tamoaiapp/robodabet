@@ -1,7 +1,0 @@
-feat(v0.1.7): botao Atualizar saldos no dashboard
-
-- Adiciona botao com icone de refresh ao lado do titulo Dashboard
-- Dispara bot.settle() via IPC (mesmo handler do cron de 4h)
-- Estado de loading durante settle (~30s pra abrir Chrome + raspar)
-- Recarrega dashboard automatico quando termina
-- Usuario nao precisa esperar cron pra ver saldos atualizados

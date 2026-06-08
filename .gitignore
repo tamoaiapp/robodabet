@@ -33,3 +33,4 @@ tools/inspect-*
 check-state.mjs
 reset-bets.mjs
 test-cdp.mjs
+COMMIT_MSG.tmp
