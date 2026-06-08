@@ -556,7 +556,14 @@ function setupAutoUpdate() {
       win?.webContents.send('update:status', { state: 'downloading', percent: Math.round(p.percent) })
     })
     autoUpdater.on('update-downloaded', (info) => {
-      console.log('[update] baixado, sera instalado ao fechar (ou via banner)')
+      const current = app.getVersion()
+      console.log(`[update] downloaded info.version=${info.version} | atual=${current}`)
+      // Só notifica banner se realmente for versao MAIOR (semver simples por string compare nao serve sempre,
+      // mas evita o caso de updater redisparar update-downloaded com a versao corrente apos restart)
+      if (info.version === current) {
+        console.log('[update] mesma versao atual — ignorando banner')
+        return
+      }
       win?.webContents.send('update:status', { state: 'ready', version: info.version })
     })
 
@@ -568,7 +575,18 @@ function setupAutoUpdate() {
 }
 
 ipcMain.handle('update:install', () => {
-  try { require('electron-updater').autoUpdater.quitAndInstall() } catch {}
+  console.log('[update] usuario clicou em Reiniciar agora')
+  try {
+    const { autoUpdater } = require('electron-updater')
+    // (isSilent=false, isForceRunAfter=true) → mostra installer NSIS e reabre app
+    autoUpdater.quitAndInstall(false, true)
+    return { ok: true }
+  } catch (e) {
+    console.error('[update] quitAndInstall erro:', e?.message)
+    // Fallback: forca app.quit pra disparar autoInstallOnAppQuit
+    setTimeout(() => app.quit(), 500)
+    return { ok: false, error: e?.message }
+  }
 })
 
 // ── App lifecycle ────────────────────────────────────────────────────────────

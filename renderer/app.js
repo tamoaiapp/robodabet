@@ -500,23 +500,34 @@ window.bot.onNotify(({ title, body }) => {
 })
 
 // Banner de atualização — mostra quando o auto-updater termina o download
-if (window.updateApi) {
+if (window.updateApi && window.appApi) {
   const banner = document.getElementById('update-banner')
   const versionLbl = document.getElementById('update-version')
   const installBtn = document.getElementById('update-install-btn')
 
+  let currentVersion = null
+  window.appApi.info().then(info => { currentVersion = info?.version }).catch(() => {})
+
   window.updateApi.onStatus(({ state, version }) => {
-    if (state === 'ready' && banner) {
-      if (versionLbl && version) versionLbl.textContent = 'v' + version
-      banner.hidden = false
-    }
+    if (state !== 'ready' || !banner) return
+    // Não mostra banner se a versão "baixada" é a mesma que já estamos rodando
+    if (version && currentVersion && version === currentVersion) return
+    if (versionLbl && version) versionLbl.textContent = 'v' + version
+    banner.hidden = false
   })
 
   if (installBtn) {
-    installBtn.onclick = () => {
+    installBtn.onclick = async () => {
       installBtn.disabled = true
       installBtn.textContent = 'Reiniciando...'
-      window.updateApi.install()
+      try {
+        await window.updateApi.install()
+      } catch {}
+      // Se em 6s o app ainda não fechou (instalação falhou silenciosa), avisa
+      setTimeout(() => {
+        installBtn.disabled = false
+        installBtn.textContent = 'Falhou — fechar o app manualmente'
+      }, 6000)
     }
   }
 }
