@@ -1428,3 +1428,46 @@ button:hover { border-color: var(--border-hover); background: var(--bg-card); }
 @keyframes refresh-spin {
   to { transform: rotate(360deg); }
 }
+
+/* Banner de atualizacao sticky no topo */
+.update-banner {
+  position: fixed;
+  top: 32px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.55rem 1.1rem;
+  background: linear-gradient(135deg, rgba(0,255,136,0.18), rgba(255,215,0,0.10));
+  border: 1px solid rgba(0,255,136,0.45);
+  border-radius: 999px;
+  color: #00ff88;
+  font-size: 0.85rem;
+  font-weight: 600;
+  z-index: 1000;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5), 0 0 24px rgba(0,255,136,0.2);
+  backdrop-filter: blur(8px);
+  animation: update-banner-in 0.35s ease-out;
+}
+@keyframes update-banner-in {
+  from { transform: translate(-50%, -20px); opacity: 0; }
+  to   { transform: translate(-50%, 0);     opacity: 1; }
+}
+.update-banner-text { color: #c8e0d0; }
+.update-banner-text strong { color: #00ff88; font-weight: 800; }
+.update-banner-btn {
+  background: linear-gradient(135deg, #00ff88, #00b86b);
+  color: #001a0d;
+  border: none;
+  border-radius: 8px;
+  padding: 0.4rem 0.95rem;
+  font-size: 0.8rem;
+  font-weight: 800;
+  cursor: pointer;
+  font-family: inherit;
+  transition: transform 0.1s, box-shadow 0.15s;
+}
+.update-banner-btn:hover { box-shadow: 0 0 14px rgba(0,255,136,0.5); }
+.update-banner-btn:active { transform: scale(0.97); }
+.update-banner-btn:disabled { opacity: 0.7; cursor: wait; }

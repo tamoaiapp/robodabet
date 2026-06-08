@@ -499,6 +499,28 @@ window.bot.onNotify(({ title, body }) => {
   if (/aposta|vit|perda/i.test(title + ' ' + body)) loadDashboard().catch(() => {})
 })
 
+// Banner de atualização — mostra quando o auto-updater termina o download
+if (window.updateApi) {
+  const banner = document.getElementById('update-banner')
+  const versionLbl = document.getElementById('update-version')
+  const installBtn = document.getElementById('update-install-btn')
+
+  window.updateApi.onStatus(({ state, version }) => {
+    if (state === 'ready' && banner) {
+      if (versionLbl && version) versionLbl.textContent = 'v' + version
+      banner.hidden = false
+    }
+  })
+
+  if (installBtn) {
+    installBtn.onclick = () => {
+      installBtn.disabled = true
+      installBtn.textContent = 'Reiniciando...'
+      window.updateApi.install()
+    }
+  }
+}
+
 // Botão "Atualizar saldos" — dispara settle manual
 const refreshBtn = document.getElementById('refresh-btn')
 const refreshLabel = document.getElementById('refresh-label')

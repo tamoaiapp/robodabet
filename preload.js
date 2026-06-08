@@ -37,3 +37,8 @@ contextBridge.exposeInMainWorld('winApi', {
   maximize: () => ipcRenderer.send('win:maximize'),
   close: () => ipcRenderer.send('win:close'),
 })
+
+contextBridge.exposeInMainWorld('updateApi', {
+  onStatus: (cb) => ipcRenderer.on('update:status', (_, payload) => cb(payload)),
+  install: () => ipcRenderer.invoke('update:install'),
+})
