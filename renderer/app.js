@@ -490,5 +490,31 @@ window.bot.onNotify(({ title, body }) => {
   if (/aposta|vit|perda/i.test(title + ' ' + body)) loadDashboard().catch(() => {})
 })
 
+// Botão "Atualizar saldos" — dispara settle manual
+const refreshBtn = document.getElementById('refresh-btn')
+const refreshLabel = document.getElementById('refresh-label')
+if (refreshBtn) {
+  refreshBtn.onclick = async () => {
+    if (refreshBtn.dataset.busy === '1') return
+    refreshBtn.dataset.busy = '1'
+    refreshBtn.classList.add('spinning')
+    refreshLabel.textContent = 'Atualizando...'
+    try {
+      await window.bot.settle()
+      refreshLabel.textContent = 'Atualizado'
+      await loadDashboard()
+    } catch (e) {
+      refreshLabel.textContent = 'Erro — tente de novo'
+      console.error('settle err:', e)
+    } finally {
+      setTimeout(() => {
+        refreshBtn.classList.remove('spinning')
+        refreshBtn.dataset.busy = '0'
+        refreshLabel.textContent = 'Atualizar saldos'
+      }, 1500)
+    }
+  }
+}
+
 // ── Inicialização ─────────────────────────────────────────────
 loadDashboard().catch(() => {})

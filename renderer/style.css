@@ -1383,3 +1383,48 @@ button:hover { border-color: var(--border-hover); background: var(--bg-card); }
 }
 ::-webkit-scrollbar-thumb:hover { background: var(--neon-green); box-shadow: 0 0 12px var(--neon-green-glow); }
 ::-webkit-scrollbar-track { background: transparent; }
+
+/* Page header com botao Atualizar saldos */
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+.page-header h1 { margin: 0; }
+
+.refresh-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 1rem;
+  background: rgba(0,255,136,0.08);
+  border: 1px solid rgba(0,255,136,0.25);
+  border-radius: 10px;
+  color: #00ff88;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, transform 0.1s;
+  font-family: inherit;
+}
+.refresh-btn:hover {
+  background: rgba(0,255,136,0.14);
+  border-color: rgba(0,255,136,0.5);
+}
+.refresh-btn:active { transform: scale(0.97); }
+.refresh-btn[data-busy="1"] {
+  pointer-events: none;
+  opacity: 0.85;
+  background: rgba(255,215,0,0.08);
+  border-color: rgba(255,215,0,0.3);
+  color: #ffd700;
+}
+.refresh-btn.spinning svg {
+  animation: refresh-spin 1s linear infinite;
+}
+@keyframes refresh-spin {
+  to { transform: rotate(360deg); }
+}
