@@ -1,14 +1,18 @@
-## Robô da Bet v0.2.5
+## Robô da Bet v0.2.6
 
-### Fix definitivo do banner zumbi
+### Fix: banner zumbi REAL — bug de CSS
 
-A v0.2.4 filtrava `update-downloaded` quando a versão era undefined ou
-igual à atual, mas o cache zumbi do electron-updater continuava lá. Ao
-abrir o app, o updater lia o cache, achava que tinha uma atualização
-pendente e disparava o evento de novo.
+Era um bug de CSS, não de cache.
 
-Agora a v0.2.5 limpa o cache zumbi **antes** de iniciar o autoUpdater:
-- Lê `%LOCALAPPDATA%\robodabet-updater\pending\update-info.json`
-- Se não tem campo `version` ou se a versão é igual à atual → apaga
-  `pending/`, `installer.exe` e `current.blockmap`
-- Aí o auto-updater começa limpo
+O banner tem atributo HTML `hidden` (faz `display: none`), mas a classe
+`.update-banner` define `display: flex` — que sobrescreve o `hidden`.
+Resultado: o banner ficava **sempre visível**, independente do JS.
+
+Mesmo a v0.2.5 limpando cache zumbi corretamente, o banner aparecia
+em branco ("nova") porque o JS nunca chamava `banner.hidden = false`
+— o CSS já o mostrava de cara.
+
+Fix de uma linha:
+```css
+.update-banner[hidden] { display: none !important; }
+```
