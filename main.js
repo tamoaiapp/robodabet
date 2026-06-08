@@ -558,10 +558,17 @@ function setupAutoUpdate() {
     autoUpdater.on('update-downloaded', (info) => {
       const current = app.getVersion()
       console.log(`[update] downloaded info.version=${info.version} | atual=${current}`)
-      // Só notifica banner se realmente for versao MAIOR (semver simples por string compare nao serve sempre,
-      // mas evita o caso de updater redisparar update-downloaded com a versao corrente apos restart)
-      if (info.version === current) {
-        console.log('[update] mesma versao atual — ignorando banner')
+      // Filtra fantasmas:
+      // - sem versao no info (cache antigo escreveu update-info.json sem o campo version)
+      // - mesma versao atual (update-info.json desatualizado)
+      if (!info.version || info.version === current) {
+        console.log('[update] versao ausente ou igual atual — ignorando banner + limpando cache')
+        try {
+          const dir = path.join(app.getPath('appData'), '..', 'Local', 'robodabet-updater')
+          for (const f of ['pending', 'installer.exe', 'current.blockmap']) {
+            try { fs.rmSync(path.join(dir, f), { recursive: true, force: true }) } catch {}
+          }
+        } catch {}
         return
       }
       win?.webContents.send('update:status', { state: 'ready', version: info.version })

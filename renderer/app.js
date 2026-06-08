@@ -510,9 +510,10 @@ if (window.updateApi && window.appApi) {
 
   window.updateApi.onStatus(({ state, version }) => {
     if (state !== 'ready' || !banner) return
-    // Não mostra banner se a versão "baixada" é a mesma que já estamos rodando
-    if (version && currentVersion && version === currentVersion) return
-    if (versionLbl && version) versionLbl.textContent = 'v' + version
+    // Filtros defensivos: sem versão → ignora; versão igual à atual → ignora.
+    if (!version) return
+    if (currentVersion && version === currentVersion) return
+    if (versionLbl) versionLbl.textContent = 'v' + version
     banner.hidden = false
   })
 
