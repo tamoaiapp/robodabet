@@ -111,6 +111,9 @@
         <button class="nav-item" data-page="aposta">
           <span class="nav-icon">🎯</span> Aposta
         </button>
+        <button class="nav-item" data-page="intel">
+          <span class="nav-icon">🧠</span> Inteligência
+        </button>
       </nav>
 
       <div class="sidebar-footer">
@@ -432,6 +435,49 @@
         <div class="card">
           <h2>Log do bot</h2>
           <pre id="log"></pre>
+        </div>
+      </section>
+
+      <!-- INTELIGÊNCIA -->
+      <section class="page" id="page-intel" hidden>
+        <div class="page-header">
+          <h1>Inteligência</h1>
+          <button class="refresh-btn" id="intel-refresh">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="23 4 23 10 17 10"></polyline>
+              <polyline points="1 20 1 14 7 14"></polyline>
+              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+            </svg>
+            Atualizar
+          </button>
+        </div>
+
+        <div class="card">
+          <h2>O que o bot aprendeu</h2>
+          <p class="muted">
+            Conforme o bot aposta, ele acumula dados reais. Ligas que perdem dinheiro são <strong>pausadas automaticamente</strong> (ROI ≤ -30% com pelo menos 3 jogos). λ (média de cantos) é recalibrado quando passa de 30 jogos por liga.
+          </p>
+        </div>
+
+        <div class="card">
+          <h2>Por liga</h2>
+          <div class="intel-table" id="intel-leagues">
+            <div class="muted">Sem dados ainda. Aposte primeiro.</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>Por linha (Total de Escanteios)</h2>
+          <div class="intel-table" id="intel-lines">
+            <div class="muted">Sem dados ainda.</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>Calibrações ativas (λ por liga)</h2>
+          <div class="intel-table" id="intel-calib">
+            <div class="muted">Nenhuma liga calibrada ainda (precisa ≥30 jogos settled).</div>
+          </div>
         </div>
       </section>
     </main>

@@ -7,6 +7,11 @@ import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 import { join } from 'node:path';
 import { listFootballEvents, getEventBetOffers } from '../casas/kambi-api.mjs';
+import { calibrateLambdas, loadCalibrations } from './calibrate.mjs';
+
+// Recalibra ao iniciar (idempotente, só faz algo se >=30 settled)
+calibrateLambdas();
+const CALIBRATIONS = loadCalibrations();
 
 // ── Config via env ─────────────────────────────────────────────
 const RISK_LEVEL = Math.max(1, Math.min(10, +(process.env.BOT_RISK_LEVEL || 5)));
@@ -16,6 +21,7 @@ const MAX_PICKS_PER_DAY = +(process.env.BOT_MAX_PICKS_PER_DAY || 10);
 const MODE = process.env.BOT_MODE || 'treino';
 const DATA_DIR = process.env.BOT_DATA_DIR || 'data';
 const FORCE_STAKE = process.env.BOT_FORCE_STAKE ? +process.env.BOT_FORCE_STAKE : null;
+const MARKETS = (process.env.BOT_MARKETS || 'corners').toLowerCase().split(',').map(s => s.trim());
 
 const RISK_PROFILE = (() => {
   // Conservador: "pega o mais SEGURO disponível" — prefere linhas baixas (alta prob),
@@ -56,23 +62,36 @@ function probOver(line, lambda) {
 // ── Stats por liga (avg de cantos = λ do Poisson) ─────────────
 function inferStats(pathArr) {
   const flat = pathArr.map(p => (p.englishName || '')).join(' ').toLowerCase();
-  if (/world cup/.test(flat) && !/club/.test(flat) && !/qualif|elimin/.test(flat)) return { lambda: 9.5, league: 'World Cup', conf: 'high' };
-  if (/premier league/.test(flat) && /england/.test(flat)) return { lambda: 10.9, league: 'EPL', conf: 'high' };
-  if (/championship/.test(flat) && /england/.test(flat)) return { lambda: 11.0, league: 'EFL Championship', conf: 'high' };
-  if (/serie a/.test(flat) && /italy/.test(flat)) return { lambda: 10.3, league: 'Serie A IT', conf: 'high' };
-  if (/la liga|primera division/.test(flat) && /spain/.test(flat)) return { lambda: 10.5, league: 'La Liga', conf: 'high' };
-  if (/bundesliga/.test(flat) && /germany/.test(flat) && !/2\./.test(flat)) return { lambda: 10.1, league: 'Bundesliga', conf: 'high' };
-  if (/ligue 1/.test(flat) && /france/.test(flat)) return { lambda: 9.5, league: 'Ligue 1', conf: 'high' };
-  if (/premiership/.test(flat) && /scotland/.test(flat)) return { lambda: 10.4, league: 'Scotland Prem', conf: 'high' };
+  const stats = _inferStatsRaw(flat);
+  // Aplica calibração aprendida se houver
+  if (stats) {
+    const cal = CALIBRATIONS[stats.league];
+    if (cal && cal.lambda) {
+      stats.lambda = cal.lambda;
+      stats.calibrated = true;
+    }
+  }
+  return stats;
+}
+
+function _inferStatsRaw(flat) {
+  // lambda_goals: média de gols por jogo (avg histórico). Usado pra OVER 2.5 etc.
+  if (/world cup/.test(flat) && !/club/.test(flat) && !/qualif|elimin/.test(flat)) return { lambda: 9.5, lambda_goals: 2.5, league: 'World Cup', conf: 'high' };
+  if (/premier league/.test(flat) && /england/.test(flat)) return { lambda: 10.9, lambda_goals: 2.8, league: 'EPL', conf: 'high' };
+  if (/championship/.test(flat) && /england/.test(flat)) return { lambda: 11.0, lambda_goals: 2.5, league: 'EFL Championship', conf: 'high' };
+  if (/serie a/.test(flat) && /italy/.test(flat)) return { lambda: 10.3, lambda_goals: 2.6, league: 'Serie A IT', conf: 'high' };
+  if (/la liga|primera division/.test(flat) && /spain/.test(flat)) return { lambda: 10.5, lambda_goals: 2.5, league: 'La Liga', conf: 'high' };
+  if (/bundesliga/.test(flat) && /germany/.test(flat) && !/2\./.test(flat)) return { lambda: 10.1, lambda_goals: 3.1, league: 'Bundesliga', conf: 'high' };
+  if (/ligue 1/.test(flat) && /france/.test(flat)) return { lambda: 9.5, lambda_goals: 2.7, league: 'Ligue 1', conf: 'high' };
+  if (/premiership/.test(flat) && /scotland/.test(flat)) return { lambda: 10.4, lambda_goals: 2.8, league: 'Scotland Prem', conf: 'high' };
   if (/friendly/.test(flat)) {
     if (/maldivas|maldives|afeganist|paquist|pakistan|bangladesh|nepal|sri lanka|butao|bhutan|mongolia|brunei/i.test(flat)) return null;
-    return { lambda: 9.0, league: 'Friendly', conf: 'medium' };
+    return { lambda: 9.0, lambda_goals: 2.6, league: 'Friendly', conf: 'medium' };
   }
-  // Argentina: promovido a 'medium' após teste de 5 jogos com PNL próximo de break-even
-  if (/argentina.*primera division|copa argentina|primera nacional|primera b nacional/.test(flat)) return { lambda: 9.5, league: 'Argentina', conf: 'medium' };
-  if (/campeonato uruguayo|uruguay.*primera/.test(flat)) return { lambda: 9.5, league: 'Uruguay', conf: 'low' };
-  if (/primera chile|primera b chile/.test(flat)) return { lambda: 9.5, league: 'Chile', conf: 'low' };
-  if (/liga dimayor|colombia.*dimayor/.test(flat)) return { lambda: 9.5, league: 'Colombia', conf: 'low' };
+  if (/argentina.*primera division|copa argentina|primera nacional|primera b nacional/.test(flat)) return { lambda: 9.5, lambda_goals: 2.2, league: 'Argentina', conf: 'medium' };
+  if (/campeonato uruguayo|uruguay.*primera/.test(flat)) return { lambda: 9.5, lambda_goals: 2.3, league: 'Uruguay', conf: 'low' };
+  if (/primera chile|primera b chile/.test(flat)) return { lambda: 9.5, lambda_goals: 2.4, league: 'Chile', conf: 'low' };
+  if (/liga dimayor|colombia.*dimayor/.test(flat)) return { lambda: 9.5, lambda_goals: 2.2, league: 'Colombia', conf: 'low' };
   return null;
 }
 
@@ -211,23 +230,36 @@ async function main() {
         const offers = await getEventBetOffers(ev.id);
         const opps = [];
         for (const o of offers) {
-          if (!/^total de escanteios$/i.test(o.criterion?.label ?? '') && !/^total corners$/i.test(o.criterion?.englishLabel ?? '')) continue;
+          // Identifica mercado (corners / goals)
+          const labelBR = (o.criterion?.label ?? '').toLowerCase();
+          const labelEN = (o.criterion?.englishLabel ?? '').toLowerCase();
+          let market = null;
+          let lambda = null;
+          if (/^total de escanteios$/.test(labelBR) || /^total corners$/.test(labelEN)) {
+            market = 'corners';
+            lambda = stats.lambda;
+          } else if ((/^total de gols$/.test(labelBR) || /^total goals$/.test(labelEN)) && stats.lambda_goals) {
+            market = 'goals';
+            lambda = stats.lambda_goals;
+          }
+          if (!market || !MARKETS.includes(market)) continue;
+
           for (const out of o.outcomes ?? []) {
             const line = out.line / 1000;
             const oddDecimal = out.odds / 1000;
-            if (line < 7 || line > 13) continue;
+            // Limites por mercado
+            if (market === 'corners' && (line < 7 || line > 13)) continue;
+            if (market === 'goals' && (line < 1.5 || line > 4.5)) continue;
             const isOver = out.type === 'OT_OVER' || /mais/i.test(out.label);
             const isUnder = out.type === 'OT_UNDER' || /menos/i.test(out.label);
             if (!isOver && !isUnder) continue;
-            // Amistoso só OVER ≤ 9.5 (insight do treino: OVER 10.5+ acertou 1/7)
-            // Mas Conservador ignora essa restrição porque busca a mais segura
-            if (stats.league === 'Friendly' && !RISK_PROFILE.preferLowLines) {
+            // Amistoso só OVER ≤ 9.5 em cantos
+            if (market === 'corners' && stats.league === 'Friendly' && !RISK_PROFILE.preferLowLines) {
               if (!isOver) continue;
               if (line > 9.5) continue;
             }
-            const probReal = isOver ? probOver(line, stats.lambda) : 1 - probOver(line, stats.lambda);
+            const probReal = isOver ? probOver(line, lambda) : 1 - probOver(line, lambda);
             const ev_pct = (probReal * oddDecimal - 1) * 100;
-            // Conservador: ignora evMin se prob ≥ minProb (busca segurança, não EV)
             const passEv = RISK_PROFILE.fallbackAcceptAnyEV
               ? (probReal >= RISK_PROFILE.minProb && ev_pct >= 0)
               : ev_pct >= RISK_PROFILE.evMin;
@@ -239,6 +271,7 @@ async function main() {
               match: `${ev.homeName} vs ${ev.awayName}`,
               league: stats.league,
               confidence: stats.conf,
+              market,
               side: isOver ? 'OVER' : 'UNDER',
               line, odd: oddDecimal,
               prob_real: probReal,
@@ -247,7 +280,7 @@ async function main() {
               horas_ate: Number(horasAte.toFixed(1)),
               evt_id: ev.id,
               path: ev.path?.map(p => p.termKey).join('/'),
-              lambda: stats.lambda,
+              lambda,
               model: 'poisson',
             });
           }

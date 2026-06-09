@@ -9,6 +9,7 @@ contextBridge.exposeInMainWorld('bot', {
   ktoLogin: () => ipcRenderer.invoke('bot:kto-login'),
   ktoStatus: () => ipcRenderer.invoke('bot:kto-status'),
   stats: () => ipcRenderer.invoke('bot:stats'),
+  intelligence: () => ipcRenderer.invoke('bot:intelligence'),
   start: () => ipcRenderer.invoke('bot:start'),
   stop: () => ipcRenderer.invoke('bot:stop'),
   getState: () => ipcRenderer.invoke('bot:get-state'),

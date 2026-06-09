@@ -1473,3 +1473,47 @@ button:hover { border-color: var(--border-hover); background: var(--bg-card); }
 .update-banner-btn:hover { box-shadow: 0 0 14px rgba(0,255,136,0.5); }
 .update-banner-btn:active { transform: scale(0.97); }
 .update-banner-btn:disabled { opacity: 0.7; cursor: wait; }
+
+/* Aba Inteligencia - tabelas */
+.intel-table { overflow-x: auto; }
+.intel-grid { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+.intel-grid th {
+  text-align: left;
+  padding: 0.6rem 0.75rem;
+  background: rgba(0,255,136,0.06);
+  color: #00ff88;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  border-bottom: 1px solid rgba(0,255,136,0.18);
+}
+.intel-grid td {
+  padding: 0.65rem 0.75rem;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  color: #e8f5ee;
+}
+.intel-grid tr.row-good { background: rgba(0,255,136,0.03); }
+.intel-grid tr.row-paused { background: rgba(239,68,68,0.05); }
+.intel-grid td.gain { color: #00ff88; font-weight: 700; }
+.intel-grid td.neutral { color: #9ec5b1; }
+.badge-paused {
+  display: inline-block;
+  padding: 0.18rem 0.55rem;
+  border-radius: 999px;
+  background: rgba(239,68,68,0.12);
+  border: 1px solid rgba(239,68,68,0.3);
+  color: #ef4444;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+.badge-active {
+  display: inline-block;
+  padding: 0.18rem 0.55rem;
+  border-radius: 999px;
+  background: rgba(0,255,136,0.10);
+  border: 1px solid rgba(0,255,136,0.3);
+  color: #00ff88;
+  font-size: 0.72rem;
+  font-weight: 700;
+}

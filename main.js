@@ -443,6 +443,73 @@ function registerIpc() {
     }
   })
 
+  ipcMain.handle('bot:intelligence', async () => {
+    try {
+      const dbPath = path.join(DATA_DIR, 'bot.db')
+      if (!fs.existsSync(dbPath)) return { exists: false }
+      const db = new DatabaseSync(dbPath)
+
+      // ROI/W-L por liga (só settled)
+      const byLeague = db.prepare(`SELECT league,
+        COUNT(*) n,
+        SUM(CASE WHEN result='won' THEN 1 ELSE 0 END) wins,
+        SUM(CASE WHEN result='lost' THEN 1 ELSE 0 END) losses,
+        SUM(stake) stake,
+        ROUND(SUM(pnl), 2) pnl,
+        ROUND(AVG(odd_taken), 2) avg_odd
+        FROM bet_clv WHERE result IN ('won','lost')
+        GROUP BY league ORDER BY pnl DESC`).all()
+
+      for (const r of byLeague) {
+        r.win_rate = r.n > 0 ? Math.round(r.wins / r.n * 100) : 0
+        r.roi = r.stake > 0 ? Math.round(r.pnl / r.stake * 100 * 10) / 10 : 0
+        r.paused = r.n >= 3 && r.roi <= -30
+      }
+
+      // ROI por linha (cantos)
+      const byLine = db.prepare(`SELECT side, line, market,
+        COUNT(*) n,
+        SUM(CASE WHEN result='won' THEN 1 ELSE 0 END) wins,
+        SUM(stake) stake,
+        ROUND(SUM(pnl), 2) pnl,
+        ROUND(AVG(odd_taken), 2) avg_odd
+        FROM bet_clv WHERE result IN ('won','lost')
+        GROUP BY side, line, market ORDER BY pnl DESC`).all()
+
+      for (const r of byLine) {
+        r.win_rate = r.n > 0 ? Math.round(r.wins / r.n * 100) : 0
+        r.roi = r.stake > 0 ? Math.round(r.pnl / r.stake * 100 * 10) / 10 : 0
+      }
+
+      // CLV por liga (só onde foi capturado)
+      const clvByLeague = db.prepare(`SELECT league,
+        COUNT(*) n,
+        ROUND(AVG(clv_pct), 2) avg_clv,
+        SUM(CASE WHEN clv_pct > 0 THEN 1 ELSE 0 END) positive
+        FROM bet_clv WHERE clv_pct IS NOT NULL
+        GROUP BY league`).all()
+
+      // Calibrações ativas (lambda usado por liga)
+      const calibrationsPath = path.join(DATA_DIR, 'leagues-calibrated.json')
+      let calibrations = {}
+      if (fs.existsSync(calibrationsPath)) {
+        try { calibrations = JSON.parse(fs.readFileSync(calibrationsPath, 'utf8')) } catch {}
+      }
+
+      db.close()
+
+      return {
+        exists: true,
+        byLeague,
+        byLine,
+        clvByLeague,
+        calibrations,
+      }
+    } catch (e) {
+      return { exists: false, error: e.message }
+    }
+  })
+
   // Motor automático
   ipcMain.handle('bot:start', async () => {
     const cfg = loadConfig()

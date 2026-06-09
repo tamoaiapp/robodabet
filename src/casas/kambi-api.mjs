@@ -36,7 +36,6 @@ export async function getCornerOutcomes(evtId) {
   const offers = await getEventBetOffers(evtId)
   const outcomes = []
   for (const o of offers) {
-    const label = (o.criterion?.label ?? '') + ' ' + (o.criterion?.englishLabel ?? '')
     if (!/^\s*(total de escanteios|total corners)\s*$/i.test(o.criterion?.label ?? '') &&
         !/^\s*total corners\s*$/i.test(o.criterion?.englishLabel ?? '')) continue
     for (const out of o.outcomes ?? []) {
@@ -48,6 +47,52 @@ export async function getCornerOutcomes(evtId) {
         odd: out.odds / 1000,
         outcomeId: out.id,
       })
+    }
+  }
+  return outcomes
+}
+
+// Helper: outcomes de "Total de gols" (Mais/Menos 2.5 etc) de UM jogo
+export async function getGoalOutcomes(evtId) {
+  const offers = await getEventBetOffers(evtId)
+  const outcomes = []
+  for (const o of offers) {
+    const lbl = (o.criterion?.label ?? '').toLowerCase()
+    const elbl = (o.criterion?.englishLabel ?? '').toLowerCase()
+    // "Total de gols" (BR) / "Total goals" (EN). Excluir totais por equipe ou por tempo.
+    const isGoalTotal = (/^total de gols$/.test(lbl) || /^total goals$/.test(elbl)) ||
+      (/total.*gols/.test(lbl) && !/casa|fora|tempo|primeiro|segundo/.test(lbl))
+    if (!isGoalTotal) continue
+    for (const out of o.outcomes ?? []) {
+      const isOver = out.type === 'OT_OVER' || /mais|over/i.test(out.label)
+      const isUnder = out.type === 'OT_UNDER' || /menos|under/i.test(out.label)
+      outcomes.push({
+        side: isOver ? 'OVER' : isUnder ? 'UNDER' : null,
+        line: out.line / 1000,
+        odd: out.odds / 1000,
+        outcomeId: out.id,
+      })
+    }
+  }
+  return outcomes
+}
+
+// Helper: outcomes de "Resultado" (1X2) — vencedor do jogo
+export async function getMatchOutcomes(evtId) {
+  const offers = await getEventBetOffers(evtId)
+  const outcomes = []
+  for (const o of offers) {
+    const lbl = (o.criterion?.label ?? '').toLowerCase()
+    const elbl = (o.criterion?.englishLabel ?? '').toLowerCase()
+    const isMatchResult = /^resultado(\s+do\s+jogo)?$/.test(lbl) || /^match.+result$/.test(elbl) || /^moneyline$/.test(elbl)
+    if (!isMatchResult) continue
+    for (const out of o.outcomes ?? []) {
+      let pick = null
+      if (out.type === 'OT_ONE' || /casa|home/i.test(out.label)) pick = 'HOME'
+      else if (out.type === 'OT_CROSS' || /empate|draw/i.test(out.label)) pick = 'DRAW'
+      else if (out.type === 'OT_TWO' || /fora|away/i.test(out.label)) pick = 'AWAY'
+      if (!pick) continue
+      outcomes.push({ side: pick, odd: out.odds / 1000, outcomeId: out.id })
     }
   }
   return outcomes

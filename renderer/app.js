@@ -72,8 +72,76 @@ function go(page) {
   $$('.page').forEach((p) => (p.hidden = true))
   $('#page-' + page).hidden = false
   $$('.nav-item').forEach((b) => b.classList.toggle('active', b.dataset.page === page))
+  if (page === 'intel') loadIntelligence().catch(() => {})
 }
 $$('.nav-item').forEach((b) => (b.onclick = () => go(b.dataset.page)))
+
+// ── Inteligência (aba) ─────────────────────────────────────
+async function loadIntelligence() {
+  const s = await window.bot.intelligence()
+  if (!s || !s.exists) return
+
+  // ── Por liga ──
+  const leagues = $('#intel-leagues')
+  if (leagues && s.byLeague?.length) {
+    leagues.innerHTML = `
+      <table class="intel-grid">
+        <thead><tr><th>Liga</th><th>N</th><th>W/L</th><th>Acerto</th><th>Odd média</th><th>ROI</th><th>PNL</th><th>Status</th></tr></thead>
+        <tbody>${s.byLeague.map(r => `
+          <tr class="${r.paused ? 'row-paused' : r.roi > 0 ? 'row-good' : 'row-neutral'}">
+            <td><strong>${r.league || '?'}</strong></td>
+            <td>${r.n}</td>
+            <td>${r.wins}/${r.losses}</td>
+            <td>${r.win_rate}%</td>
+            <td>${r.avg_odd}</td>
+            <td class="${r.roi >= 0 ? 'gain' : 'neutral'}">${r.roi >= 0 ? '+' : ''}${r.roi}%</td>
+            <td class="${r.pnl >= 0 ? 'gain' : 'neutral'}">${r.pnl >= 0 ? '+' : ''}R$ ${r.pnl.toFixed(2).replace('.', ',')}</td>
+            <td>${r.paused ? '<span class="badge-paused">⛔ Pausada</span>' : '<span class="badge-active">✓ Ativa</span>'}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>`
+  } else if (leagues) {
+    leagues.innerHTML = '<div class="muted">Sem dados ainda. Aposte primeiro.</div>'
+  }
+
+  // ── Por linha ──
+  const lines = $('#intel-lines')
+  if (lines && s.byLine?.length) {
+    const corners = s.byLine.filter(r => r.market === 'corners')
+    lines.innerHTML = corners.length ? `
+      <table class="intel-grid">
+        <thead><tr><th>Side</th><th>Linha</th><th>N</th><th>Vitórias</th><th>Acerto</th><th>Odd média</th><th>ROI</th><th>PNL</th></tr></thead>
+        <tbody>${corners.map(r => `
+          <tr class="${r.roi > 0 ? 'row-good' : 'row-neutral'}">
+            <td><strong>${r.side}</strong></td>
+            <td>${r.line}</td>
+            <td>${r.n}</td>
+            <td>${r.wins}</td>
+            <td>${r.win_rate}%</td>
+            <td>${r.avg_odd}</td>
+            <td class="${r.roi >= 0 ? 'gain' : 'neutral'}">${r.roi >= 0 ? '+' : ''}${r.roi}%</td>
+            <td class="${r.pnl >= 0 ? 'gain' : 'neutral'}">${r.pnl >= 0 ? '+' : ''}R$ ${r.pnl.toFixed(2).replace('.', ',')}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>` : '<div class="muted">Sem dados de cantos ainda.</div>'
+  }
+
+  // ── Calibrações ativas ──
+  const calib = $('#intel-calib')
+  if (calib) {
+    const entries = Object.entries(s.calibrations || {})
+    calib.innerHTML = entries.length ? `
+      <table class="intel-grid">
+        <thead><tr><th>Liga</th><th>λ (cantos)</th><th>N base</th><th>Atualizado</th></tr></thead>
+        <tbody>${entries.map(([k, v]) => `
+          <tr><td><strong>${k}</strong></td><td>${v.lambda}</td><td>${v.n}</td><td class="muted">${v.updated || '—'}</td></tr>`).join('')}
+        </tbody>
+      </table>` : '<div class="muted">Nenhuma liga calibrada ainda (precisa ≥30 jogos settled na mesma liga).</div>'
+  }
+}
+
+const intelRefresh = $('#intel-refresh')
+if (intelRefresh) intelRefresh.onclick = () => loadIntelligence().catch(() => {})
 
 // ── Log helper ────────────────────────────────────────────────
 const log = $('#log')
