@@ -8,10 +8,28 @@ import { DatabaseSync } from 'node:sqlite';
 import { join } from 'node:path';
 import { listFootballEvents, getEventBetOffers } from '../casas/kambi-api.mjs';
 import { calibrateLambdas, loadCalibrations } from './calibrate.mjs';
+import { fetchFederatedCalibrations, loadCachedCalibrations } from './federated.mjs';
 
-// Recalibra ao iniciar (idempotente, só faz algo se >=30 settled)
+// Recalibra LOCAL ao iniciar (idempotente, só faz algo se >=30 settled)
 calibrateLambdas();
-const CALIBRATIONS = loadCalibrations();
+const LOCAL_CALIB = loadCalibrations();
+
+// Calibrações da REDE (cache 6h, refetch em background sem bloquear)
+const NET_CALIB_DATA = loadCachedCalibrations();
+fetchFederatedCalibrations().catch(() => {});  // fire and forget
+
+// Merge: rede ganha se N >= 30, senão local. Blacklist da rede sempre vale.
+const CALIBRATIONS = {};
+const NET_BLACKLIST = new Set();
+for (const [lg, info] of Object.entries(NET_CALIB_DATA.leagues || {})) {
+  if (info.blacklist) NET_BLACKLIST.add(lg);
+  if (info.lambda && info.n >= 30) CALIBRATIONS[lg] = info;
+}
+for (const [lg, info] of Object.entries(LOCAL_CALIB)) {
+  if (!CALIBRATIONS[lg]) CALIBRATIONS[lg] = info;  // local só se rede ainda não tem
+}
+if (NET_BLACKLIST.size) console.log(`Blacklist rede: ${[...NET_BLACKLIST].join(', ')}`);
+console.log(`Calibrações ativas: ${Object.keys(CALIBRATIONS).length} (rede ${NET_CALIB_DATA.n_total || 0} jogos)`);
 
 // ── Config via env ─────────────────────────────────────────────
 const RISK_LEVEL = Math.max(1, Math.min(10, +(process.env.BOT_RISK_LEVEL || 5)));
@@ -216,6 +234,7 @@ async function main() {
     if (!stats) continue;
     if (stats.conf === 'low' && !RISK_PROFILE.lowConf) continue;
     if (blacklist.has(stats.league)) continue;
+    if (NET_BLACKLIST.has(stats.league)) continue;  // blacklist global da rede
     elegiveis.push({ ev, horasAte, stats });
   }
   console.log(`Elegíveis: ${elegiveis.length}`);

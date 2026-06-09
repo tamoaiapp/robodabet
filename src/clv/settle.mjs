@@ -4,6 +4,7 @@ import { DatabaseSync } from 'node:sqlite'
 import { join } from 'node:path'
 import { mkdirSync, writeFileSync, existsSync } from 'node:fs'
 import { openChrome } from '../casas/chrome-launcher.mjs'
+import { submitToFederated } from '../strategy/federated.mjs'
 
 const DATA_DIR = process.env.BOT_DATA_DIR || 'data'
 mkdirSync(DATA_DIR, { recursive: true })

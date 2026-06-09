@@ -1,37 +1,40 @@
-## Robô da Bet v0.3.0
+## Robô da Bet v0.3.1
 
-### Nova aba "Inteligência" 🧠
+### 🌐 Aprendizado federado (em conjunto)
 
-Mostra **em tempo real** o que o bot está aprendendo:
+Antes: cada cliente aprendia sozinho — bot do João tinha que perder R$10
+em Uruguay antes de pausar a liga.
 
-- **Por liga:** N, W/L, taxa de acerto, odd média, ROI, PNL, status (ativa/pausada)
-- **Por linha:** detalhamento OVER/UNDER por linha (7.5, 8.5, 9.5...)
-- **Calibrações ativas:** quando uma liga passa de 30 jogos settled, o bot
-  recalcula o λ (média de cantos) com base nos dados reais e mostra aqui
+Agora: todo cliente envia suas apostas settled (anônimo) pra um servidor
+agregador, e baixa as calibrações da rede inteira.
 
-Ligas pausadas (ROI ≤ -30% com N ≥ 3) aparecem em vermelho — o bot **não
-aposta mais nelas** até você zerar dados.
+**Como funciona:**
+1. Quando settle marca won/lost, envia `(liga, side, line, odd, result)` pro VPS
+2. VPS agrega tudo num arquivo JSONL
+3. VPS calcula λ por liga via método dos momentos
+4. Liga com ROI ≤ -30% e N ≥ 10 vira **blacklist global**
+5. Cliente baixa o JSON agregado no startup (cache 6h)
+6. `select-treino.mjs` aplica blacklist global ANTES de selecionar picks
 
-### Auto-calibração
+**O que isso muda na prática:**
+- Cliente novo já entra com calibrações de toda a rede
+- Quando 100 clientes apostam, modelo aprende 100× mais rápido
+- Blacklist propaga: se Uruguay foi ruim pra rede, é ruim pra todos
 
-Novo módulo `src/strategy/calibrate.mjs`:
-- Lê histórico settled por liga
-- Quando ≥ 30 settled: recalcula λ usando o método dos momentos
-  (média ponderada de linhas × win rate observado)
-- Salva em `leagues-calibrated.json`
-- `select-treino.mjs` usa o λ calibrado em vez do hardcoded
+**Privacidade:** envia só `(liga, side, line, odd, result)` — nenhum dado
+que identifique o cliente. Endpoint `/robodabet/calibrations` é público
+(qualquer um pode baixar) e `/robodabet/learn` usa o mesmo bearer token
+do TamoIA.
 
-É o bot **aprendendo com seus próprios resultados**.
+### Nova seção na aba Inteligência
 
-### Suporte preliminar a Goals e 1X2
+Card "🌐 Rede federada" mostra:
+- Total de apostas agregadas pela rede
+- λ por liga calculado pelo agregado
+- Ligas pausadas globalmente
+- Última sincronização
 
-API Kambi agora extrai outcomes de:
-- **Total de gols** (OVER/UNDER 2.5 etc) — modelo Poisson igual cantos
-- **Resultado 1X2** — outcomes HOME/DRAW/AWAY
+### Endpoints VPS
 
-`select-treino.mjs` aceita `BOT_MARKETS=corners,goals` (env var)
-e detecta picks de gols com λ por liga.
-
-**Importante:** o `place-bets.mjs` ainda só executa cantos. Picks de gols
-são detectadas mas não apostadas automaticamente nesta versão.
-Execução completa de gols/1X2 vem na v0.3.1.
+- `POST http://76.13.125.78:8901/robodabet/learn`
+- `GET http://76.13.125.78:8901/robodabet/calibrations`

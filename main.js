@@ -496,6 +496,13 @@ function registerIpc() {
         try { calibrations = JSON.parse(fs.readFileSync(calibrationsPath, 'utf8')) } catch {}
       }
 
+      // Calibrações da REDE (federated)
+      const netPath = path.join(DATA_DIR, 'network-calibrations.json')
+      let network = { leagues: {}, n_total: 0 }
+      if (fs.existsSync(netPath)) {
+        try { network = JSON.parse(fs.readFileSync(netPath, 'utf8')) } catch {}
+      }
+
       db.close()
 
       return {
@@ -504,6 +511,7 @@ function registerIpc() {
         byLine,
         clvByLeague,
         calibrations,
+        network,
       }
     } catch (e) {
       return { exists: false, error: e.message }

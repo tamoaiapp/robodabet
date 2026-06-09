@@ -126,6 +126,36 @@ async function loadIntelligence() {
       </table>` : '<div class="muted">Sem dados de cantos ainda.</div>'
   }
 
+  // ── Rede federada ──
+  const netCard = $('#intel-network-card')
+  const netSummary = $('#intel-network-summary')
+  const netTable = $('#intel-network')
+  if (netCard && s.network && s.network.n_total > 0) {
+    netCard.hidden = false
+    const fetchedAt = s.network.fetched_at ? new Date(s.network.fetched_at).toLocaleString('pt-BR') : '—'
+    if (netSummary) {
+      netSummary.innerHTML = `Dados agregados de <strong>${s.network.n_total}</strong> apostas de toda a rede. Última sincronização: <em>${fetchedAt}</em>. Sua aposta também alimenta a rede (anônimo).`
+    }
+    const netLeagues = Object.entries(s.network.leagues || {})
+    if (netTable && netLeagues.length) {
+      netTable.innerHTML = `
+        <table class="intel-grid">
+          <thead><tr><th>Liga</th><th>λ rede</th><th>N rede</th><th>ROI rede</th><th>Status</th></tr></thead>
+          <tbody>${netLeagues.map(([k, v]) => `
+            <tr class="${v.blacklist ? 'row-paused' : v.roi > 0 ? 'row-good' : 'row-neutral'}">
+              <td><strong>${k}</strong></td>
+              <td>${v.lambda ?? '—'}</td>
+              <td>${v.n}</td>
+              <td class="${v.roi >= 0 ? 'gain' : 'neutral'}">${v.roi >= 0 ? '+' : ''}${v.roi}%</td>
+              <td>${v.blacklist ? '<span class="badge-paused">⛔ Pausada</span>' : '<span class="badge-active">✓ OK</span>'}</td>
+            </tr>`).join('')}
+          </tbody>
+        </table>`
+    } else if (netTable) {
+      netTable.innerHTML = '<div class="muted">Rede ainda agregando dados de outros clientes.</div>'
+    }
+  }
+
   // ── Calibrações ativas ──
   const calib = $('#intel-calib')
   if (calib) {
