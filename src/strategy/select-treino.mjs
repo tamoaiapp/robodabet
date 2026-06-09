@@ -20,8 +20,9 @@ const FORCE_STAKE = process.env.BOT_FORCE_STAKE ? +process.env.BOT_FORCE_STAKE :
 const RISK_PROFILE = (() => {
   // Conservador: "pega o mais SEGURO disponível" — prefere linhas baixas (alta prob),
   // sempre devolve pelo menos 1 pick se houver jogo elegível (prob ≥ 70%)
+  // lowConf=false: só aposta em ligas medium/high (após perdas em Uruguay/Colombia/Chile)
   if (RISK_LEVEL <= 3) return {
-    evMin: 0, kellyFrac: 0.125, stakeMax: 1, lowConf: true, label: 'Conservador',
+    evMin: 0, kellyFrac: 0.125, stakeMax: 1, lowConf: false, label: 'Conservador',
     sortBy: 'prob', minProb: 0.70, fallbackAcceptAnyEV: true, preferLowLines: true,
   };
   // Equilibrado: balanceado — EV ≥ 5%, linhas médias
@@ -67,11 +68,37 @@ function inferStats(pathArr) {
     if (/maldivas|maldives|afeganist|paquist|pakistan|bangladesh|nepal|sri lanka|butao|bhutan|mongolia|brunei/i.test(flat)) return null;
     return { lambda: 9.0, league: 'Friendly', conf: 'medium' };
   }
-  if (/argentina.*primera division|copa argentina|primera nacional|primera b nacional/.test(flat)) return { lambda: 9.5, league: 'Argentina', conf: 'low' };
+  // Argentina: promovido a 'medium' após teste de 5 jogos com PNL próximo de break-even
+  if (/argentina.*primera division|copa argentina|primera nacional|primera b nacional/.test(flat)) return { lambda: 9.5, league: 'Argentina', conf: 'medium' };
   if (/campeonato uruguayo|uruguay.*primera/.test(flat)) return { lambda: 9.5, league: 'Uruguay', conf: 'low' };
   if (/primera chile|primera b chile/.test(flat)) return { lambda: 9.5, league: 'Chile', conf: 'low' };
   if (/liga dimayor|colombia.*dimayor/.test(flat)) return { lambda: 9.5, league: 'Colombia', conf: 'low' };
   return null;
+}
+
+// ── AUTO-BLACKLIST: ligas que perderam dinheiro de verdade ────
+// Lê o histórico real e bane ligas com ROI ≤ -30% e N ≥ 3.
+// É o "treino" — o bot aprende dos próprios resultados.
+function loadLeagueBlacklist() {
+  const dbPath = join(DATA_DIR, 'bot.db');
+  if (!existsSync(dbPath)) return new Set();
+  const db = new DatabaseSync(dbPath);
+  const rows = db.prepare(`SELECT league, COUNT(*) n,
+    SUM(CASE WHEN result IN ('won','lost') THEN stake ELSE 0 END) stake_settled,
+    SUM(pnl) pnl
+    FROM bet_clv WHERE market='corners' AND result IN ('won','lost')
+    GROUP BY league HAVING n >= 3`).all();
+  db.close();
+  const blacklist = new Set();
+  for (const r of rows) {
+    if (r.stake_settled <= 0) continue;
+    const roi = r.pnl / r.stake_settled * 100;
+    if (roi <= -30) {
+      blacklist.add(r.league);
+      console.log(`  ⛔ Liga PAUSADA: ${r.league} (N=${r.n}, ROI=${roi.toFixed(1)}%)`);
+    }
+  }
+  return blacklist;
 }
 
 // ── Kelly fracionário ──────────────────────────────────────────
@@ -155,6 +182,9 @@ async function main() {
   }
   console.log(`Já apostados (skip): ${jaApostados.size}`);
 
+  // Auto-blacklist: ligas que perderam dinheiro no histórico real
+  const blacklist = loadLeagueBlacklist();
+
   // Filtra elegíveis + chama API só pros eventos que valem (paralelo)
   const now = Date.now();
   const elegiveis = [];
@@ -166,6 +196,7 @@ async function main() {
     const stats = inferStats(ev.path ?? []);
     if (!stats) continue;
     if (stats.conf === 'low' && !RISK_PROFILE.lowConf) continue;
+    if (blacklist.has(stats.league)) continue;
     elegiveis.push({ ev, horasAte, stats });
   }
   console.log(`Elegíveis: ${elegiveis.length}`);
